@@ -5,8 +5,8 @@ import (
 	"net"
 )
 
-// get non-loopback address, intf-name, mac
-func getSelfIpIntf() (string, string, []byte, error) {
+// get first non-loopback address, intf-name and mac
+func getSelfIntfAndIp() (string, string, []byte, error) {
 	intfs, err := net.Interfaces()
 	if err != nil {
 		return "", "", nil, err
@@ -30,29 +30,16 @@ func getSelfIpIntf() (string, string, []byte, error) {
 	return "", "", nil, nil
 }
 
-func getSelfIp() (string, error) {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "", err
-	}
-
-	for _, a := range addrs {
-		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String(), nil
-			}
-		}
-	}
-
-	return "", nil
-}
-
 func main() {
-	selfAddrStr, intfName, intfHwAddr, err := getSelfIpIntf()
+	selfAddrStr, intfName, intfHwAddr, err := getSelfIntfAndIp()
 	if err != nil {
 		log.Println(err)
 	}
-	log.Println("using ", intfName, selfAddrStr)
+	log.Println("using", intfName, selfAddrStr)
+
+	// NSDP require two socket
+	// 192.168.0.xxx:63321 -> 255.255.255.255:63322
+	// 192.168.0.yyy:63322 -> 192.168.0.xxx:63321
 
 	selfAddr, err := net.ResolveUDPAddr("udp", selfAddrStr+":63321")
 	if err != nil {
@@ -62,7 +49,11 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
-	sendConn, err := net.DialUDP("udp", selfAddr, sendToAddr)
+	anyAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:63322")
+	if err != nil {
+		log.Println(err)
+	}
+	sendConn, err := net.DialUDP("udp", selfAddr, anyAddr)
 	if err != nil {
 		log.Println(err)
 	}
@@ -100,7 +91,7 @@ func main() {
 	// 0000 0000
 	// ffff 0000
 	for range []int{1, 2, 3} {
-		writeLen, err := sendConn.Write(queryModel)
+		writeLen, err := sendConn.WriteTo(queryModel, sendToAddr)
 		log.Println(writeLen, err)
 	}
 
