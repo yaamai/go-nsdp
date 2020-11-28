@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"time"
 )
 
 // get first non-loopback address, intf-name and mac
@@ -30,34 +31,35 @@ func getSelfIntfAndIp() (string, string, []byte, error) {
 	return "", "", nil, nil
 }
 
-func main() {
+type NSDPClient struct {
+	intfName   string
+	intfHwAddr []byte
+	conn       *net.UDPConn
+}
+
+func NewNSDPClient() (*NSDPClient, error) {
 	selfAddrStr, intfName, intfHwAddr, err := getSelfIntfAndIp()
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	log.Println("using", intfName, selfAddrStr)
-
-	// NSDP require two socket
-	// 192.168.0.xxx:63321 -> 255.255.255.255:63322
-	// 192.168.0.yyy:63322 -> 192.168.0.xxx:63321
 
 	selfAddr, err := net.ResolveUDPAddr("udp", selfAddrStr+":63321")
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-
-	sendToAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:63322")
-	if err != nil {
-		log.Println(err)
-	}
-	// anyAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:63322")
-	// if err != nil {
-	// 	log.Println(err)
-	// }
 
 	conn, err := net.ListenUDP("udp", selfAddr)
 	if err != nil {
-		log.Println(err)
+		return nil, err
+	}
+
+	return &NSDPClient{conn: conn, intfHwAddr: intfHwAddr, intfName: intfName}, nil
+}
+
+func (c *NSDPClient) send() error {
+	sendToAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:63322")
+	if err != nil {
+		return err
 	}
 
 	queryModel := []byte{
@@ -75,23 +77,34 @@ func main() {
 		0xff, 0xff, 0x00, 0x00,
 		//		0x00, 0x00, 0xff, 0xff,
 	}
-	// set mac addr
-	for idx, b := range intfHwAddr {
+
+	for idx, b := range c.intfHwAddr {
 		queryModel[8+idx] = b
 	}
 	for range []int{1, 2, 3} {
-		writeLen, err := conn.WriteTo(queryModel, sendToAddr)
+		writeLen, err := c.conn.WriteTo(queryModel, sendToAddr)
 		log.Println(writeLen, err)
+		time.Sleep(1 * time.Second)
 	}
 
 	go func() {
 		for {
 			buf := make([]byte, 65535)
-			readLen, _, err := conn.ReadFrom(buf)
+			readLen, _, err := c.conn.ReadFrom(buf)
 			log.Println(readLen, buf[:readLen], err)
 
 		}
 	}()
+
+	return nil
+}
+
+func main() {
+	c, err := NewNSDPClient()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	c.send()
 
 	for {
 	}
