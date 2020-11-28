@@ -5,6 +5,31 @@ import (
 	"net"
 )
 
+// get non-loopback address, intf-name, mac
+func getSelfIpIntf() (string, string, []byte, error) {
+	intfs, err := net.Interfaces()
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	for _, intf := range intfs {
+		addrs, err := intf.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					return ipnet.IP.String(), intf.Name, intf.HardwareAddr, nil
+				}
+			}
+		}
+	}
+
+	return "", "", nil, nil
+}
+
 func getSelfIp() (string, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -23,10 +48,12 @@ func getSelfIp() (string, error) {
 }
 
 func main() {
-	selfAddrStr, err := getSelfIp()
+	selfAddrStr, intfName, intfHwAddr, err := getSelfIpIntf()
 	if err != nil {
 		log.Println(err)
 	}
+	log.Println("using ", intfName, selfAddrStr)
+
 	selfAddr, err := net.ResolveUDPAddr("udp", selfAddrStr+":63321")
 	if err != nil {
 		log.Println(err)
@@ -54,6 +81,10 @@ func main() {
 		0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
 		0xff, 0xff, 0x00, 0x00,
 		//		0x00, 0x00, 0xff, 0xff,
+	}
+	// set mac addr
+	for idx, b := range intfHwAddr {
+		queryModel[8+idx] = b
 	}
 	//
 	// 01
