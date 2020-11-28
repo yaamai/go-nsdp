@@ -45,15 +45,17 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
+
 	sendToAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:63322")
 	if err != nil {
 		log.Println(err)
 	}
-	anyAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:63322")
-	if err != nil {
-		log.Println(err)
-	}
-	sendConn, err := net.DialUDP("udp", selfAddr, anyAddr)
+	// anyAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:63322")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+
+	conn, err := net.ListenUDP("udp", selfAddr)
 	if err != nil {
 		log.Println(err)
 	}
@@ -77,29 +79,16 @@ func main() {
 	for idx, b := range intfHwAddr {
 		queryModel[8+idx] = b
 	}
-	//
-	// 01
-	// 02
-	// 0700
-	// 0000 0000
-	// 0000 0000 00
-	// 0044 a56e 49
-	// c7b2
-	// 0000
-	// 0001
-	// 4e53 4450
-	// 0000 0000
-	// ffff 0000
 	for range []int{1, 2, 3} {
-		writeLen, err := sendConn.WriteTo(queryModel, sendToAddr)
+		writeLen, err := conn.WriteTo(queryModel, sendToAddr)
 		log.Println(writeLen, err)
 	}
 
 	go func() {
 		for {
 			buf := make([]byte, 65535)
-			readLen, err := sendConn.Read(buf)
-			log.Println(readLen, err)
+			readLen, _, err := conn.ReadFrom(buf)
+			log.Println(readLen, buf[:readLen], err)
 
 		}
 	}()
