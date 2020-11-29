@@ -15,8 +15,8 @@ func (b Body) WriteToBuffer(buf *bytes.Buffer) {
 }
 func (b *Body) ReadFromBuffer(buf *bytes.Reader) {
 	for buf.Len() > 4 {
-		tlv := TLVBase{}
-		tlv.ReadFromBuffer(buf)
-		b.Body = append(b.Body, &tlv)
+		base := TLVBase{}
+		base.ReadFromBuffer(buf)
+		b.Body = append(b.Body, ParseTLVs(base))
 	}
 }

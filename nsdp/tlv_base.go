@@ -6,9 +6,8 @@ import (
 )
 
 type TLV interface {
-	String() string
 	WriteToBuffer(b *bytes.Buffer)
-	ReadFromBuffer(b *bytes.Reader)
+	ReadFromBase(b TLVBase)
 }
 
 type TLVBase struct {
@@ -24,6 +23,7 @@ func (t TLVBase) WriteToBuffer(b *bytes.Buffer) {
 	b.WriteByte(byte(t.Length & 0xff))
 	b.Write(t.Value)
 }
+
 func (t *TLVBase) ReadFromBuffer(b *bytes.Reader) {
 	if b.Len() < 4 {
 		return
@@ -37,6 +37,11 @@ func (t *TLVBase) ReadFromBuffer(b *bytes.Reader) {
 	t.Value = make([]byte, t.Length)
 	b.Read(t.Value)
 }
+
+func (t *TLVBase) ReadFromBase(b TLVBase) {
+	*t = b
+}
+
 func (t TLVBase) String() string {
 	return fmt.Sprintf("T: %d, V: %v(%d)", t.Tag, t.Value, t.Length)
 }
