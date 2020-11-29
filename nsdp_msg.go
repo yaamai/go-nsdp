@@ -7,7 +7,7 @@ import (
 
 var (
 	EmptyMac          = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	NSDPDefaultHeader = NSDPHeader{Version: 1, Op: 1, HostMac: EmptyMac, DeviceMac: EmptyMac, Signature: [4]byte{0x4E, 0x53, 0x44, 0x50}}
+	NSDPDefaultHeader = NSDPHeader{Version: 1, Op: 1, HostMac: EmptyMac, DeviceMac: EmptyMac, Seq: 1, Signature: [4]byte{0x4E, 0x53, 0x44, 0x50}}
 	NSDPDefaultBody   = NSDPBody{}
 	NSDPDefaultMarker = NSDPMarker{EndOfData: [4]byte{0xff, 0xff, 0x00, 0x00}}
 	NSDPDefaultMsg    = NSDPMsg{NSDPDefaultHeader, NSDPDefaultBody, NSDPDefaultMarker}
@@ -83,4 +83,10 @@ func (m NSDPMsg) WriteToBuffer(b *bytes.Buffer) {
 	m.NSDPHeader.WriteToBuffer(b)
 	m.NSDPBody.WriteToBuffer(b)
 	m.NSDPMarker.WriteToBuffer(b)
+}
+
+func (m NSDPMsg) Bytes() []byte {
+	b := bytes.Buffer{}
+	m.WriteToBuffer(&b)
+	return b.Bytes()
 }

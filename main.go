@@ -62,20 +62,7 @@ func (c *NSDPClient) send() error {
 		return err
 	}
 
-	queryModel := []byte{
-		0x01,
-		0x01,
-		0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00,
-		0x00, 0x01,
-		0x4E, 0x53, 0x44, 0x50,
-		0x00, 0x00, 0x00, 0x00,
-		0xff, 0xff, 0x00, 0x00,
-		//		0x00, 0x00, 0xff, 0xff,
-	}
+	queryModel := NSDPDefaultMsg.Bytes()
 
 	for idx, b := range c.intfHwAddr {
 		queryModel[8+idx] = b
@@ -90,24 +77,6 @@ func (c *NSDPClient) send() error {
 		}
 	}()
 
-	go func() {
-		recvAllAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:63321")
-		if err != nil {
-			log.Println(err)
-		}
-
-		conn2, err := net.ListenUDP("udp", recvAllAddr)
-		if err != nil {
-			log.Println(err)
-		}
-		buf := make([]byte, 65535)
-		readLen, _, err := conn2.ReadFrom(buf)
-		if err != nil {
-			log.Println(err)
-		}
-		log.Println(readLen, buf[:readLen], err)
-	}()
-
 	for idx := 0; idx < 120; idx++ {
 		writeLen, err := c.conn.WriteTo(queryModel, sendToAddr)
 		log.Println(writeLen, err)
@@ -118,8 +87,6 @@ func (c *NSDPClient) send() error {
 }
 
 func main() {
-	msg := NSDPMsg{}
-	log.Println(msg.Result)
 	c, err := NewNSDPClient()
 	if err != nil {
 		log.Fatalln(err)
