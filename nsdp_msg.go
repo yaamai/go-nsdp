@@ -78,31 +78,44 @@ func (h NSDPHeader) String() string {
 	return fmt.Sprintf("V: %d, Op: %d(%d), HostMAC: %v, DevMAC: %v, Seq: %d", h.Version, h.Op, h.Result, h.HostMac, h.DeviceMac, h.Seq)
 }
 
-type NSDPTLV struct {
-	Tag    int16
-	Length int16
+type NSDPTLV interface {
+	String() string
+	WriteToBuffer(b *bytes.Buffer)
+	ReadFromBuffer(b *bytes.Reader)
+}
+
+type NSDPTLVBase struct {
+	Tag    uint16
+	Length uint16
 	Value  []byte
 }
 
-func (t NSDPTLV) WriteToBuffer(b *bytes.Buffer) {
+type NSDPTLVUnknown struct {
+	NSDPTLVBase
+}
+
+func (t NSDPTLVUnknown) WriteToBuffer(b *bytes.Buffer) {
 	b.WriteByte(byte(t.Tag >> 8))
 	b.WriteByte(byte(t.Tag & 0xff))
 	b.WriteByte(byte(t.Length >> 8))
 	b.WriteByte(byte(t.Length & 0xff))
 	b.Write(t.Value)
 }
-func (t *NSDPTLV) ReadFromBuffer(b *bytes.Reader) {
+func (t *NSDPTLVUnknown) ReadFromBuffer(b *bytes.Reader) {
 	if b.Len() < 4 {
 		return
 	}
-	t.Tag = readInt16(b)
-	t.Length = readInt16(b)
+	t.Tag = uint16(readInt16(b))
+	t.Length = uint16(readInt16(b))
 
 	if b.Len() < int(t.Length) {
 		return
 	}
 	t.Value = make([]byte, t.Length)
 	b.Read(t.Value)
+}
+func (t NSDPTLVUnknown) String() string {
+	return fmt.Sprintf("T: %d, V: %v(%d)", t.Tag, t.Value, t.Length)
 }
 
 type NSDPBody struct {
@@ -116,9 +129,9 @@ func (b NSDPBody) WriteToBuffer(buf *bytes.Buffer) {
 }
 func (b *NSDPBody) ReadFromBuffer(buf *bytes.Reader) {
 	for buf.Len() > 4 {
-		tlv := NSDPTLV{}
+		tlv := NSDPTLVUnknown{}
 		tlv.ReadFromBuffer(buf)
-		b.Body = append(b.Body, tlv)
+		b.Body = append(b.Body, &tlv)
 	}
 }
 
