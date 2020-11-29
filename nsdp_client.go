@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gs308e/nsdp"
 	"log"
 	"math/rand"
 	"net"
@@ -69,7 +70,7 @@ func NewNSDPClient() (*NSDPClient, error) {
 	return &NSDPClient{anyAddr: anyAddr, conn: conn, intfHwAddr: intfHwAddr, intfName: intfName, seq: seq}, nil
 }
 
-func (c *NSDPClient) SendRecvMsg(msg NSDPMsg) *NSDPMsg {
+func (c *NSDPClient) SendRecvMsg(msg nsdp.NSDPMsg) *nsdp.NSDPMsg {
 	recvCh := make(chan bool, 1)
 	buf := make([]byte, 65535)
 	readLen := 0
@@ -85,7 +86,7 @@ func (c *NSDPClient) SendRecvMsg(msg NSDPMsg) *NSDPMsg {
 		select {
 		case <-recvCh:
 			log.Println(readLen, buf[:readLen])
-			return ParseNSDPMsg(buf[:readLen])
+			return nsdp.ParseNSDPMsg(buf[:readLen])
 		case <-ticker.C:
 			writeLen, err := c.conn.WriteTo(msg.Bytes(), c.anyAddr)
 			log.Println(writeLen, err)
@@ -96,8 +97,8 @@ func (c *NSDPClient) SendRecvMsg(msg NSDPMsg) *NSDPMsg {
 	return nil
 }
 
-func (c *NSDPClient) Read(msg []NSDPTLV) *NSDPMsg {
-	m := NSDPMsg(NSDPDefaultMsg)
+func (c *NSDPClient) Read(msg []nsdp.NSDPTLV) *nsdp.NSDPMsg {
+	m := nsdp.NSDPMsg(nsdp.NSDPDefaultMsg)
 	m.Op = 1
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
@@ -106,8 +107,8 @@ func (c *NSDPClient) Read(msg []NSDPTLV) *NSDPMsg {
 	return c.SendRecvMsg(m)
 }
 
-func (c *NSDPClient) Write(msg []NSDPTLV) *NSDPMsg {
-	m := NSDPMsg(NSDPDefaultMsg)
+func (c *NSDPClient) Write(msg []nsdp.NSDPTLV) *nsdp.NSDPMsg {
+	m := nsdp.NSDPMsg(nsdp.NSDPDefaultMsg)
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
