@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 )
 
@@ -13,6 +14,20 @@ var (
 	NSDPDefaultMsg    = NSDPMsg{NSDPDefaultHeader, NSDPDefaultBody, NSDPDefaultMarker}
 )
 
+func readInt8(b *bytes.Reader) int8 {
+	v, _ := b.ReadByte()
+	return int8(v)
+}
+func readInt16(b *bytes.Reader) int16 {
+	v1, _ := b.ReadByte()
+	v2, _ := b.ReadByte()
+
+	var v int16
+	v = int16(v1) << 8
+	v = v | int16(v2)
+	return v
+}
+
 type NSDPHeader struct {
 	Version   int8
 	Op        int8
@@ -21,7 +36,7 @@ type NSDPHeader struct {
 	HostMac   net.HardwareAddr
 	DeviceMac net.HardwareAddr
 	Unknown2  [2]byte
-	Seq       int16
+	Seq       uint16
 	Signature [4]byte
 	Unknown3  [4]byte
 }
@@ -41,6 +56,28 @@ func (h NSDPHeader) WriteToBuffer(b *bytes.Buffer) {
 	b.Write(h.Unknown3[:])
 }
 
+func (h *NSDPHeader) ReadFromBuffer(b *bytes.Reader) {
+	if b.Len() < 32 {
+		return
+	}
+	h.Version = readInt8(b)
+	h.Op = readInt8(b)
+	h.Result = readInt16(b)
+	b.Read(h.Unknown1[:])
+	h.HostMac = make([]byte, 6)
+	b.Read(h.HostMac[:])
+	h.DeviceMac = make([]byte, 6)
+	b.Read(h.DeviceMac[:])
+	b.Read(h.Unknown2[:])
+	h.Seq = uint16(readInt16(b))
+	b.Read(h.Signature[:])
+	b.Read(h.Unknown3[:])
+}
+
+func (h NSDPHeader) String() string {
+	return fmt.Sprintf("V: %d, Op: %d(%d), HostMAC: %v, DevMAC: %v, Seq: %d", h.Version, h.Op, h.Result, h.HostMac, h.DeviceMac, h.Seq)
+}
+
 type NSDPTLV struct {
 	Tag    int16
 	Length int16
@@ -54,6 +91,19 @@ func (t NSDPTLV) WriteToBuffer(b *bytes.Buffer) {
 	b.WriteByte(byte(t.Length & 0xff))
 	b.Write(t.Value)
 }
+func (t *NSDPTLV) ReadFromBuffer(b *bytes.Reader) {
+	if b.Len() < 4 {
+		return
+	}
+	t.Tag = readInt16(b)
+	t.Length = readInt16(b)
+
+	if b.Len() < int(t.Length) {
+		return
+	}
+	t.Value = make([]byte, t.Length)
+	b.Read(t.Value)
+}
 
 type NSDPBody struct {
 	Body []NSDPTLV
@@ -62,6 +112,13 @@ type NSDPBody struct {
 func (b NSDPBody) WriteToBuffer(buf *bytes.Buffer) {
 	for idx, _ := range b.Body {
 		b.Body[idx].WriteToBuffer(buf)
+	}
+}
+func (b *NSDPBody) ReadFromBuffer(buf *bytes.Reader) {
+	for buf.Len() > 4 {
+		tlv := NSDPTLV{}
+		tlv.ReadFromBuffer(buf)
+		b.Body = append(b.Body, tlv)
 	}
 }
 
@@ -73,10 +130,34 @@ func (m NSDPMarker) WriteToBuffer(b *bytes.Buffer) {
 	b.Write(m.EndOfData[:])
 }
 
+func (m *NSDPMarker) ReadFromBuffer(b *bytes.Reader) {
+	if b.Len() < 4 {
+		return
+	}
+	b.Read(m.EndOfData[:])
+}
+
+func (b NSDPMarker) String() string {
+	if bytes.Compare(b.EndOfData[:], NSDPDefaultMarker.EndOfData[:]) == 0 {
+		return "<MARK>"
+	} else {
+		return "<INVALID-MARK>"
+	}
+}
+
 type NSDPMsg struct {
 	NSDPHeader
 	NSDPBody
 	NSDPMarker
+}
+
+func ParseNSDPMsg(buf []byte) *NSDPMsg {
+	m := &NSDPMsg{}
+	r := bytes.NewReader(buf)
+	m.NSDPHeader.ReadFromBuffer(r)
+	m.NSDPBody.ReadFromBuffer(r)
+	m.NSDPMarker.ReadFromBuffer(r)
+	return m
 }
 
 func (m NSDPMsg) WriteToBuffer(b *bytes.Buffer) {

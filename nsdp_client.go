@@ -37,7 +37,7 @@ type NSDPClient struct {
 	intfName   string
 	intfHwAddr []byte
 	conn       *net.UDPConn
-	seq        int16
+	seq        uint16
 }
 
 func NewNSDPClient() (*NSDPClient, error) {
@@ -63,17 +63,18 @@ func NewNSDPClient() (*NSDPClient, error) {
 
 	// to avoid ignore msg, set random sequence number
 	rand.Seed(time.Now().UnixNano())
-	seq := int16(rand.Intn(0xffff))
+	seq := uint16(rand.Intn(0xffff))
+	log.Println(seq)
 
 	return &NSDPClient{anyAddr: anyAddr, conn: conn, intfHwAddr: intfHwAddr, intfName: intfName, seq: seq}, nil
 }
 
-func (c *NSDPClient) SendRecvMsg(msg NSDPMsg) {
+func (c *NSDPClient) SendRecvMsg(msg NSDPMsg) *NSDPMsg {
 	recvCh := make(chan bool, 1)
 	buf := make([]byte, 65535)
+	readLen := 0
 	go func() {
-		readLen, _, err := c.conn.ReadFrom(buf)
-		log.Println(readLen, buf[:readLen], err)
+		readLen, _, _ = c.conn.ReadFrom(buf)
 		recvCh <- true
 	}()
 
@@ -83,33 +84,34 @@ func (c *NSDPClient) SendRecvMsg(msg NSDPMsg) {
 	for retry < 3 {
 		select {
 		case <-recvCh:
-			return
+			log.Println(readLen, buf[:readLen])
+			return ParseNSDPMsg(buf[:readLen])
 		case <-ticker.C:
 			writeLen, err := c.conn.WriteTo(msg.Bytes(), c.anyAddr)
 			log.Println(writeLen, err)
 			retry += 1
 		}
 	}
+
+	return nil
 }
 
-func (c *NSDPClient) Read(msg []NSDPTLV) error {
+func (c *NSDPClient) Read(msg []NSDPTLV) *NSDPMsg {
 	m := NSDPMsg(NSDPDefaultMsg)
 	m.Op = 1
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
 	m.Body = msg
 
-	c.SendRecvMsg(m)
-	return nil
+	return c.SendRecvMsg(m)
 }
 
-func (c *NSDPClient) Write(msg []NSDPTLV) error {
+func (c *NSDPClient) Write(msg []NSDPTLV) *NSDPMsg {
 	m := NSDPMsg(NSDPDefaultMsg)
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
 	m.Body = msg
 
-	c.SendRecvMsg(m)
-	return nil
+	return c.SendRecvMsg(m)
 }

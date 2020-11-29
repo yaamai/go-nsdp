@@ -9,7 +9,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	c.Read([]NSDPTLV{NSDPTLV{Tag: 1, Length: 0}})
+	log.Println(c.Read([]NSDPTLV{NSDPTLV{Tag: 1, Length: 0}}))
 
 	for {
 	}
