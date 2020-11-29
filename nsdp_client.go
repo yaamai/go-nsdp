@@ -71,6 +71,8 @@ func NewClient() (*Client, error) {
 }
 
 func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
+	c.seq = c.seq + 1
+
 	recvCh := make(chan bool, 1)
 	buf := make([]byte, 65535)
 	readLen := 0
@@ -80,16 +82,18 @@ func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
 	}()
 
 	retry := 0
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for retry < 3 {
 		select {
 		case <-recvCh:
-			log.Println(readLen, buf[:readLen])
+			log.Println("recv", readLen, buf[:readLen])
 			return nsdp.ParseMsg(buf[:readLen])
 		case <-ticker.C:
 			writeLen, err := c.conn.WriteTo(msg.Bytes(), c.anyAddr)
-			log.Println(writeLen, err)
+			if err != nil {
+				log.Println(writeLen, err)
+			}
 			retry += 1
 		}
 	}
@@ -97,22 +101,22 @@ func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
 	return nil
 }
 
-func (c *Client) Read(msg []nsdp.TLV) *nsdp.Msg {
+func (c *Client) Read(msg ...nsdp.TLV) *nsdp.Msg {
 	m := nsdp.Msg(nsdp.DefaultMsg)
 	m.Op = 1
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
-	m.Body = nsdp.Body{msg}
+	m.Body = nsdp.Body{Body: msg}
 
 	return c.SendRecvMsg(m)
 }
 
-func (c *Client) Write(msg []nsdp.TLV) *nsdp.Msg {
+func (c *Client) Write(msg ...nsdp.TLV) *nsdp.Msg {
 	m := nsdp.Msg(nsdp.DefaultMsg)
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
-	m.Body = nsdp.Body{msg}
+	m.Body = nsdp.Body{Body: msg}
 
 	return c.SendRecvMsg(m)
 }

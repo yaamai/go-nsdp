@@ -30,3 +30,19 @@ func (t *TLVModelName) ReadFromBase(base TLVBase) {
 func (t *TLVModelName) String() string {
 	return t.Name
 }
+
+type TLVName struct {
+	Name string
+}
+
+func (t TLVName) WriteToBuffer(b *bytes.Buffer) {
+	TLVBase{Tag: 0x17, Length: uint16(len([]byte(t.Name))), Value: []byte(t.Name)}.WriteToBuffer(b)
+}
+
+func (t *TLVName) ReadFromBase(base TLVBase) {
+	t.Name = string(base.Value)
+}
+
+func (t *TLVName) String() string {
+	return t.Name
+}
