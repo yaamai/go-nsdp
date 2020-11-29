@@ -4,23 +4,23 @@ import (
 	"bytes"
 )
 
-type NSDPMarker struct {
+type Marker struct {
 	EndOfData [4]byte
 }
 
-func (m NSDPMarker) WriteToBuffer(b *bytes.Buffer) {
+func (m Marker) WriteToBuffer(b *bytes.Buffer) {
 	b.Write(m.EndOfData[:])
 }
 
-func (m *NSDPMarker) ReadFromBuffer(b *bytes.Reader) {
+func (m *Marker) ReadFromBuffer(b *bytes.Reader) {
 	if b.Len() < 4 {
 		return
 	}
 	b.Read(m.EndOfData[:])
 }
 
-func (b NSDPMarker) String() string {
-	if bytes.Compare(b.EndOfData[:], NSDPDefaultMarker.EndOfData[:]) == 0 {
+func (b Marker) String() string {
+	if bytes.Compare(b.EndOfData[:], DefaultMarker.EndOfData[:]) == 0 {
 		return "<MARK>"
 	} else {
 		return "<INVALID-MARK>"

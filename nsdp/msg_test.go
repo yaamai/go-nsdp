@@ -1,4 +1,4 @@
-package main
+package nsdp
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 
 func TestEmptyMsg(t *testing.T) {
 	b := bytes.Buffer{}
-	NSDPDefaultMsg.WriteToBuffer(&b)
+	DefaultMsg.WriteToBuffer(&b)
 
 	empty := []byte{
 		0x01,
@@ -45,15 +45,15 @@ func TestMsgParse(t *testing.T) {
 		0, 1, 0, 6, 71, 83, 51, 48, 56, 69,
 		255, 255, 0, 0,
 	}
-	expected := &NSDPMsg{
-		NSDPHeader: NSDPHeader{Version: 1, Op: 2, Result: 0, Unknown1: [4]uint8{0x0, 0x0, 0x0, 0x0},
+	expected := &Msg{
+		Header: Header{Version: 1, Op: 2, Result: 0, Unknown1: [4]uint8{0x0, 0x0, 0x0, 0x0},
 			HostMac: net.HardwareAddr{0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, DeviceMac: net.HardwareAddr{0x44, 0xa5, 0x6e, 0x11, 0x11, 0x11},
 			Unknown2: [2]uint8{0x0, 0x0}, Seq: 0xd32b, Signature: [4]uint8{0x4e, 0x53, 0x44, 0x50}, Unknown3: [4]uint8{0x0, 0x0, 0x0, 0x0}},
-		NSDPBody:   NSDPBody{Body: []NSDPTLV{NSDPTLV{Tag: 1, Length: 6, Value: []uint8{0x47, 0x53, 0x33, 0x30, 0x38, 0x45}}}},
-		NSDPMarker: NSDPMarker{EndOfData: [4]uint8{0xff, 0xff, 0x0, 0x0}},
+		Body:   Body{Body: []TLV{&TLVBase{Tag: 1, Length: 6, Value: []uint8{0x47, 0x53, 0x33, 0x30, 0x38, 0x45}}}},
+		Marker: Marker{EndOfData: [4]uint8{0xff, 0xff, 0x0, 0x0}},
 	}
 
-	msg := ParseNSDPMsg(input)
+	msg := ParseMsg(input)
 
 	assert.Equal(t, expected, msg)
 }

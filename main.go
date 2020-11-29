@@ -6,11 +6,12 @@ import (
 )
 
 func main() {
-	c, err := NewNSDPClient()
+	c, err := NewClient()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println(c.Read([]nsdp.NSDPTLV{&nsdp.NSDPTLVUnknown{nsdp.NSDPTLVBase{Tag: 1, Length: 0}}}))
+	tlv := &nsdp.TLVBase{Tag: 1, Length: 0}
+	log.Println(c.Read([]nsdp.TLV{tlv}))
 
 	for {
 	}

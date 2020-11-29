@@ -33,7 +33,7 @@ func getSelfIntfAndIp() (string, string, []byte, error) {
 	return "", "", nil, nil
 }
 
-type NSDPClient struct {
+type Client struct {
 	anyAddr    *net.UDPAddr
 	intfName   string
 	intfHwAddr []byte
@@ -41,7 +41,7 @@ type NSDPClient struct {
 	seq        uint16
 }
 
-func NewNSDPClient() (*NSDPClient, error) {
+func NewClient() (*Client, error) {
 	selfAddrStr, intfName, intfHwAddr, err := getSelfIntfAndIp()
 	if err != nil {
 		return nil, err
@@ -67,10 +67,10 @@ func NewNSDPClient() (*NSDPClient, error) {
 	seq := uint16(rand.Intn(0xffff))
 	log.Println(seq)
 
-	return &NSDPClient{anyAddr: anyAddr, conn: conn, intfHwAddr: intfHwAddr, intfName: intfName, seq: seq}, nil
+	return &Client{anyAddr: anyAddr, conn: conn, intfHwAddr: intfHwAddr, intfName: intfName, seq: seq}, nil
 }
 
-func (c *NSDPClient) SendRecvMsg(msg nsdp.NSDPMsg) *nsdp.NSDPMsg {
+func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
 	recvCh := make(chan bool, 1)
 	buf := make([]byte, 65535)
 	readLen := 0
@@ -86,7 +86,7 @@ func (c *NSDPClient) SendRecvMsg(msg nsdp.NSDPMsg) *nsdp.NSDPMsg {
 		select {
 		case <-recvCh:
 			log.Println(readLen, buf[:readLen])
-			return nsdp.ParseNSDPMsg(buf[:readLen])
+			return nsdp.ParseMsg(buf[:readLen])
 		case <-ticker.C:
 			writeLen, err := c.conn.WriteTo(msg.Bytes(), c.anyAddr)
 			log.Println(writeLen, err)
@@ -97,22 +97,22 @@ func (c *NSDPClient) SendRecvMsg(msg nsdp.NSDPMsg) *nsdp.NSDPMsg {
 	return nil
 }
 
-func (c *NSDPClient) Read(msg []nsdp.NSDPTLV) *nsdp.NSDPMsg {
-	m := nsdp.NSDPMsg(nsdp.NSDPDefaultMsg)
+func (c *Client) Read(msg []nsdp.TLV) *nsdp.Msg {
+	m := nsdp.Msg(nsdp.DefaultMsg)
 	m.Op = 1
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
-	m.Body = msg
+	m.Body = nsdp.Body{msg}
 
 	return c.SendRecvMsg(m)
 }
 
-func (c *NSDPClient) Write(msg []nsdp.NSDPTLV) *nsdp.NSDPMsg {
-	m := nsdp.NSDPMsg(nsdp.NSDPDefaultMsg)
+func (c *Client) Write(msg []nsdp.TLV) *nsdp.Msg {
+	m := nsdp.Msg(nsdp.DefaultMsg)
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
-	m.Body = msg
+	m.Body = nsdp.Body{msg}
 
 	return c.SendRecvMsg(m)
 }

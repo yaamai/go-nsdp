@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-type NSDPHeader struct {
+type Header struct {
 	Version   int8
 	Op        int8
 	Result    int16
@@ -19,7 +19,7 @@ type NSDPHeader struct {
 	Unknown3  [4]byte
 }
 
-func (h NSDPHeader) WriteToBuffer(b *bytes.Buffer) {
+func (h Header) WriteToBuffer(b *bytes.Buffer) {
 	b.WriteByte(byte(h.Version))
 	b.WriteByte(byte(h.Op))
 	b.WriteByte(byte(h.Result >> 8))
@@ -34,7 +34,7 @@ func (h NSDPHeader) WriteToBuffer(b *bytes.Buffer) {
 	b.Write(h.Unknown3[:])
 }
 
-func (h *NSDPHeader) ReadFromBuffer(b *bytes.Reader) {
+func (h *Header) ReadFromBuffer(b *bytes.Reader) {
 	if b.Len() < 32 {
 		return
 	}
@@ -52,6 +52,6 @@ func (h *NSDPHeader) ReadFromBuffer(b *bytes.Reader) {
 	b.Read(h.Unknown3[:])
 }
 
-func (h NSDPHeader) String() string {
+func (h Header) String() string {
 	return fmt.Sprintf("V: %d, Op: %d(%d), HostMAC: %v, DevMAC: %v, Seq: %d", h.Version, h.Op, h.Result, h.HostMac, h.DeviceMac, h.Seq)
 }

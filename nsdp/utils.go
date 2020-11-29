@@ -5,11 +5,11 @@ import (
 )
 
 var (
-	EmptyMac          = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	NSDPDefaultHeader = NSDPHeader{Version: 1, Op: 1, HostMac: EmptyMac, DeviceMac: EmptyMac, Seq: 1, Signature: [4]byte{0x4E, 0x53, 0x44, 0x50}}
-	NSDPDefaultBody   = NSDPBody{}
-	NSDPDefaultMarker = NSDPMarker{EndOfData: [4]byte{0xff, 0xff, 0x00, 0x00}}
-	NSDPDefaultMsg    = NSDPMsg{NSDPDefaultHeader, NSDPDefaultBody, NSDPDefaultMarker}
+	EmptyMac      = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	DefaultHeader = Header{Version: 1, Op: 1, HostMac: EmptyMac, DeviceMac: EmptyMac, Seq: 1, Signature: [4]byte{0x4E, 0x53, 0x44, 0x50}}
+	DefaultBody   = Body{}
+	DefaultMarker = Marker{EndOfData: [4]byte{0xff, 0xff, 0x00, 0x00}}
+	DefaultMsg    = Msg{DefaultHeader, DefaultBody, DefaultMarker}
 )
 
 func readInt8(b *bytes.Reader) int8 {

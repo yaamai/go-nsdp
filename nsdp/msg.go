@@ -4,28 +4,28 @@ import (
 	"bytes"
 )
 
-type NSDPMsg struct {
-	NSDPHeader
-	NSDPBody
-	NSDPMarker
+type Msg struct {
+	Header
+	Body
+	Marker
 }
 
-func ParseNSDPMsg(buf []byte) *NSDPMsg {
-	m := &NSDPMsg{}
+func ParseMsg(buf []byte) *Msg {
+	m := &Msg{}
 	r := bytes.NewReader(buf)
-	m.NSDPHeader.ReadFromBuffer(r)
-	m.NSDPBody.ReadFromBuffer(r)
-	m.NSDPMarker.ReadFromBuffer(r)
+	m.Header.ReadFromBuffer(r)
+	m.Body.ReadFromBuffer(r)
+	m.Marker.ReadFromBuffer(r)
 	return m
 }
 
-func (m NSDPMsg) WriteToBuffer(b *bytes.Buffer) {
-	m.NSDPHeader.WriteToBuffer(b)
-	m.NSDPBody.WriteToBuffer(b)
-	m.NSDPMarker.WriteToBuffer(b)
+func (m Msg) WriteToBuffer(b *bytes.Buffer) {
+	m.Header.WriteToBuffer(b)
+	m.Body.WriteToBuffer(b)
+	m.Marker.WriteToBuffer(b)
 }
 
-func (m NSDPMsg) Bytes() []byte {
+func (m Msg) Bytes() []byte {
 	b := bytes.Buffer{}
 	m.WriteToBuffer(&b)
 	return b.Bytes()
