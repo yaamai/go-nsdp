@@ -11,6 +11,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	resp := c.Read(&nsdp.TLVBase{Tag: uint16(0x7400), Length: 0})
+	resp := c.Read(nsdp.TagVlanMembers{})
 	log.Printf("%v", resp)
 }

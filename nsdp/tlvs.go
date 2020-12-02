@@ -2,14 +2,14 @@ package nsdp
 
 import (
 	"bytes"
+	"encoding/binary"
+	"fmt"
+	"log"
 )
 
 /*
 from https://github.com/AlbanBedel/libnsdp/blob/master/nsdp_properties.h
 from https://github.com/tabacha/ProSafeLinux/blob/master/psl_class.py
- NSDP_PROPERTY_NONE				0x0000
- NSDP_PROPERTY_MODEL			0x0001
- NSDP_PROPERTY_HOSTNAME			0x0003
  NSDP_PROPERTY_MAC				0x0004
  NSDP_PROPERTY_IP				0x0006
  NSDP_PROPERTY_NETMASK			0x0007
@@ -24,9 +24,6 @@ from https://github.com/tabacha/ProSafeLinux/blob/master/psl_class.py
  NSDP_PROPERTY_PORT_PVID		0x3000
  NSDP_PROPERTY_PORT_COUNT		0x6000
 
- CMD_MODEL = psl_typ.PslTypStringQueryOnly(0x0001, "model")
- CMD_FIMXE2 = psl_typ.PslTypHex(0x0002, "fixme2")
- CMD_NAME = psl_typ.PslTypString(0x0003, "name")
  CMD_MAC = psl_typ.PslTypMac(0x0004, "MAC")
  CMD_LOCATION = psl_typ.PslTypString(0x0005, "location")
  CMD_IP = psl_typ.PslTypIpv4(0x0006, "ip")
@@ -68,45 +65,215 @@ from https://github.com/tabacha/ProSafeLinux/blob/master/psl_class.py
      "igmp_header_validation")
  CMD_FIXME7400 = psl_typ.PslTypHex(0x7400, "fixme7400")
 */
-func ParseTLVs(base TLVBase) TLV {
-	switch base.Tag {
-	case 1:
-		v := TLVModelName{}
-		v.ReadFromBase(base)
-		return &v
+func ParseTLVs(tag uint16, length uint16, value []byte) TLV {
+	log.Println("Value:", value)
+	switch tag {
+	case 0x0001:
+		return &ModelName{StringValue{string(value)}}
+	case 0x0003:
+		return &HostName{StringValue{string(value)}}
+	case 0x0c00:
+		v := (&PortStatus{}).FromBytes(value)
+		return v
+	case 0x1000:
+		return (&PortStat{}).FromBytes(value)
+	case 0x2400:
+		return (&PortVlanMembers{}).FromBytes(value)
+	case 0x2800:
+		return (&TagVlanMembers{}).FromBytes(value)
+	}
+	return nil
+}
+
+type StringValue struct {
+	string
+}
+
+func (t StringValue) Length() uint16 {
+	return uint16(len(t.string))
+}
+func (t StringValue) Value() []byte {
+	return []byte(t.string)
+}
+func (t StringValue) String() string {
+	return t.string
+}
+
+type ModelName struct {
+	StringValue
+}
+
+func (t ModelName) Tag() uint16 {
+	return 0x0001
+}
+
+type HostName struct {
+	StringValue
+}
+
+func (t HostName) Tag() uint16 {
+	return 0x0003
+}
+
+type PortDuplex int
+
+const (
+	UnknownDuplex PortDuplex = iota
+	HalfDuplex
+	FullDuplex
+)
+
+func (s PortDuplex) String() string {
+	switch s {
+	case UnknownDuplex:
+		return "U"
+	case HalfDuplex:
+		return "H"
+	case FullDuplex:
+		return "F"
 	default:
-		return &base
+		return "U"
 	}
 }
 
-type TLVModelName struct {
-	Name string
+type PortStatus struct {
+	Port   int
+	Speed  int
+	Duplex PortDuplex
 }
 
-func (t TLVModelName) WriteToBuffer(b *bytes.Buffer) {
-	TLVBase{Tag: 1, Length: uint16(len([]byte(t.Name))), Value: []byte(t.Name)}.WriteToBuffer(b)
+func (t PortStatus) Tag() uint16 {
+	return 0x0c00
+}
+func (t PortStatus) Length() uint16 {
+	return uint16(0)
+}
+func (t PortStatus) Value() []byte {
+	return []byte{}
+}
+func (t *PortStatus) FromBytes(b []byte) *PortStatus {
+	t.Port = int(b[0])
+	switch int(b[1]) {
+	case 0:
+		t.Duplex = UnknownDuplex
+		t.Speed = 0
+	case 1:
+		t.Duplex = HalfDuplex
+		t.Speed = 10
+	case 2:
+		t.Duplex = FullDuplex
+		t.Speed = 10
+	case 3:
+		t.Duplex = HalfDuplex
+		t.Speed = 100
+	case 4:
+		t.Duplex = FullDuplex
+		t.Speed = 100
+	case 5:
+		t.Duplex = FullDuplex
+		t.Speed = 1000
+	}
+	return t
+}
+func (t PortStatus) String() string {
+	return fmt.Sprintf("%d:%dMbit/s(%v)", t.Port, t.Speed, t.Duplex)
 }
 
-func (t *TLVModelName) ReadFromBase(base TLVBase) {
-	t.Name = string(base.Value)
+type PortStat struct {
+	Port      int
+	Recv      uint64
+	Send      uint64
+	Pkt       uint64
+	Broadcast uint64
+	Multicast uint64
+	Error     uint64
 }
 
-func (t *TLVModelName) String() string {
-	return t.Name
+func (t PortStat) Tag() uint16 {
+	return 0x1000
+}
+func (t PortStat) Length() uint16 {
+	return uint16(0)
+}
+func (t PortStat) Value() []byte {
+	return []byte{}
 }
 
-type TLVName struct {
-	Name string
+func (t *PortStat) FromBytes(b []byte) *PortStat {
+	t.Port = int(b[0])
+	reader := bytes.NewReader(b[1:])
+
+	binary.Read(reader, binary.BigEndian, &t.Recv)
+	binary.Read(reader, binary.BigEndian, &t.Send)
+	binary.Read(reader, binary.BigEndian, &t.Pkt)
+	binary.Read(reader, binary.BigEndian, &t.Broadcast)
+	binary.Read(reader, binary.BigEndian, &t.Multicast)
+	binary.Read(reader, binary.BigEndian, &t.Error)
+	return t
+}
+func (t PortStat) String() string {
+	return fmt.Sprintf("%d:Send=%d, Recv=%d, Pkts=%d, Broadcast=%d, Multicast=%d, Err=%d", t.Port, t.Recv, t.Send, t.Pkt, t.Broadcast, t.Multicast, t.Error)
 }
 
-func (t TLVName) WriteToBuffer(b *bytes.Buffer) {
-	TLVBase{Tag: 0x17, Length: uint16(len([]byte(t.Name))), Value: []byte(t.Name)}.WriteToBuffer(b)
+func parsePortsBits(buf []byte) []int {
+	ports := []int{}
+	portNum := 1
+	for _, b := range buf {
+		for idx := 0x80; idx > 0; idx = idx >> 1 {
+			if b&byte(idx) != 0 {
+				ports = append(ports, portNum)
+			}
+			portNum += 1
+		}
+	}
+
+	return ports
 }
 
-func (t *TLVName) ReadFromBase(base TLVBase) {
-	t.Name = string(base.Value)
+type PortVlanMembers struct {
+	VlanID int
+	Ports  []int
 }
 
-func (t *TLVName) String() string {
-	return t.Name
+func (t PortVlanMembers) Tag() uint16 {
+	return 0x2400
+}
+func (t PortVlanMembers) Length() uint16 {
+	return uint16(0)
+}
+func (t PortVlanMembers) Value() []byte {
+	return []byte{}
+}
+func (t *PortVlanMembers) FromBytes(buf []byte) *PortVlanMembers {
+	t.VlanID = int(buf[0])<<8 + int(buf[1])
+	t.Ports = parsePortsBits(buf[2:])
+	return t
+}
+func (t PortVlanMembers) String() string {
+	return fmt.Sprintf("%d:%v", t.VlanID, t.Ports)
+}
+
+type TagVlanMembers struct {
+	VlanID        int
+	TaggedPorts   []int
+	UnTaggedPorts []int
+}
+
+func (t TagVlanMembers) Tag() uint16 {
+	return 0x2800
+}
+func (t TagVlanMembers) Length() uint16 {
+	return uint16(0)
+}
+func (t TagVlanMembers) Value() []byte {
+	return []byte{}
+}
+func (t *TagVlanMembers) FromBytes(buf []byte) *TagVlanMembers {
+	t.VlanID = int(buf[0])<<8 + int(buf[1])
+	t.TaggedPorts = parsePortsBits(buf[2:3])
+	t.UnTaggedPorts = parsePortsBits(buf[3:4])
+	return t
+}
+func (t TagVlanMembers) String() string {
+	return fmt.Sprintf("%d:%v,%v", t.VlanID, t.TaggedPorts, t.UnTaggedPorts)
 }
