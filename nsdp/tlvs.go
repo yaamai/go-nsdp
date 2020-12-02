@@ -69,9 +69,13 @@ func ParseTLVs(tag uint16, length uint16, value []byte) TLV {
 	log.Println("Value:", value)
 	switch tag {
 	case 0x0001:
-		return &ModelName{StringValue{string(value)}}
+		return &ModelName{StringValue(value)}
 	case 0x0003:
-		return &HostName{StringValue{string(value)}}
+		return &HostName{StringValue(value)}
+	case 0x0017:
+		return &AuthV2PasswordSalt{BytesValue(value)}
+	case 0x001a:
+		return &AuthV2Password{BytesValue(value)}
 	case 0x0c00:
 		v := (&PortStatus{}).FromBytes(value)
 		return v
@@ -85,18 +89,28 @@ func ParseTLVs(tag uint16, length uint16, value []byte) TLV {
 	return nil
 }
 
-type StringValue struct {
-	string
-}
+type StringValue string
 
 func (t StringValue) Length() uint16 {
-	return uint16(len(t.string))
+	return uint16(len(t))
 }
 func (t StringValue) Value() []byte {
-	return []byte(t.string)
+	return []byte(t)
 }
 func (t StringValue) String() string {
-	return t.string
+	return string(t)
+}
+
+type BytesValue []byte
+
+func (t BytesValue) Length() uint16 {
+	return uint16(len(t))
+}
+func (t BytesValue) Value() []byte {
+	return t
+}
+func (t BytesValue) String() string {
+	return string(t)
 }
 
 type ModelName struct {
@@ -105,6 +119,38 @@ type ModelName struct {
 
 func (t ModelName) Tag() uint16 {
 	return 0x0001
+}
+
+type NewPassword struct {
+	StringValue
+}
+
+func (t NewPassword) Tag() uint16 {
+	return 0x0009
+}
+
+type Password struct {
+	StringValue
+}
+
+func (t Password) Tag() uint16 {
+	return 0x000a
+}
+
+type AuthV2PasswordSalt struct {
+	BytesValue
+}
+
+func (t AuthV2PasswordSalt) Tag() uint16 {
+	return 0x0017
+}
+
+type AuthV2Password struct {
+	BytesValue
+}
+
+func (t AuthV2Password) Tag() uint16 {
+	return 0x001a
 }
 
 type HostName struct {
@@ -215,21 +261,6 @@ func (t PortStat) String() string {
 	return fmt.Sprintf("%d:Send=%d, Recv=%d, Pkts=%d, Broadcast=%d, Multicast=%d, Err=%d", t.Port, t.Recv, t.Send, t.Pkt, t.Broadcast, t.Multicast, t.Error)
 }
 
-func parsePortsBits(buf []byte) []int {
-	ports := []int{}
-	portNum := 1
-	for _, b := range buf {
-		for idx := 0x80; idx > 0; idx = idx >> 1 {
-			if b&byte(idx) != 0 {
-				ports = append(ports, portNum)
-			}
-			portNum += 1
-		}
-	}
-
-	return ports
-}
-
 type PortVlanMembers struct {
 	VlanID int
 	Ports  []int
@@ -263,10 +294,15 @@ func (t TagVlanMembers) Tag() uint16 {
 	return 0x2800
 }
 func (t TagVlanMembers) Length() uint16 {
-	return uint16(0)
+	return uint16(len(t.Value()))
 }
 func (t TagVlanMembers) Value() []byte {
-	return []byte{}
+	tagged := combinePortsBits(t.TaggedPorts)
+	untagged := combinePortsBits(t.UnTaggedPorts)
+	vlanid := []byte{byte((t.VlanID >> 8) & 0xff), byte(t.VlanID & 0xff)}
+
+	// maybe len(tagged) and len(untagged) must be equal. but not checked
+	return append(vlanid, append(tagged, untagged...)...)
 }
 func (t *TagVlanMembers) FromBytes(buf []byte) *TagVlanMembers {
 	t.VlanID = int(buf[0])<<8 + int(buf[1])

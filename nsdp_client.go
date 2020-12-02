@@ -35,6 +35,7 @@ func getSelfIntfAndIp() (string, string, []byte, error) {
 
 type Client struct {
 	anyAddr    *net.UDPAddr
+	targetAddr *net.UDPAddr
 	intfName   string
 	intfHwAddr []byte
 	conn       *net.UDPConn
@@ -62,12 +63,24 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 
+	targetAddr, err := net.ResolveUDPAddr("udp", "192.168.132.170:63322")
+	if err != nil {
+		return nil, err
+	}
+
 	// to avoid ignore msg, set random sequence number
 	rand.Seed(time.Now().UnixNano())
 	seq := uint16(rand.Intn(0xffff))
 	log.Println(seq)
 
-	return &Client{anyAddr: anyAddr, conn: conn, intfHwAddr: intfHwAddr, intfName: intfName, seq: seq}, nil
+	return &Client{
+		anyAddr:    anyAddr,
+		targetAddr: targetAddr,
+		conn:       conn,
+		intfHwAddr: intfHwAddr,
+		intfName:   intfName,
+		seq:        seq,
+	}, nil
 }
 
 func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
@@ -78,6 +91,7 @@ func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
 	readLen := 0
 	go func() {
 		readLen, _, _ = c.conn.ReadFrom(buf)
+		log.Println("recv", readLen, buf[:readLen])
 		recvCh <- true
 	}()
 
@@ -87,10 +101,11 @@ func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
 	for retry < 3 {
 		select {
 		case <-recvCh:
-			log.Println("recv", readLen, buf[:readLen])
 			return nsdp.ParseMsg(buf[:readLen])
 		case <-ticker.C:
-			writeLen, err := c.conn.WriteTo(msg.Bytes(), c.anyAddr)
+			b := msg.Bytes()
+			log.Println("send", b)
+			writeLen, err := c.conn.WriteTo(b, c.anyAddr)
 			if err != nil {
 				log.Println(writeLen, err)
 			}
@@ -116,6 +131,7 @@ func (c *Client) Write(msg ...nsdp.TLV) *nsdp.Msg {
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.intfHwAddr
+	m.DeviceMac = []byte{0x44, 0xa5, 0x6e, 0x11, 0x11, 0x11}
 	m.Body = nsdp.Body{Body: msg}
 
 	return c.SendRecvMsg(m)

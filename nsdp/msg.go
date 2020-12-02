@@ -21,7 +21,12 @@ func ParseMsg(buf []byte) *Msg {
 
 func (m Msg) WriteToBuffer(b *bytes.Buffer) {
 	m.Header.WriteToBuffer(b)
-	m.Body.WriteToBuffer(b)
+	// if read op, write only tag (length, value not needed)
+	skipValue := false
+	if m.Header.Op == 1 {
+		skipValue = true
+	}
+	m.Body.WriteToBuffer(b, skipValue)
 	m.Marker.WriteToBuffer(b)
 }
 

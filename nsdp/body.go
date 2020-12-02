@@ -8,11 +8,16 @@ type Body struct {
 	Body []TLV
 }
 
-func (b Body) WriteToBuffer(buf *bytes.Buffer) {
+func (b Body) WriteToBuffer(buf *bytes.Buffer, skipValue bool) {
 	for _, tlv := range b.Body {
 		tag := tlv.Tag()
-		length := tlv.Length()
-		value := tlv.Value()
+
+		length := uint16(0)
+		value := []byte{}
+		if !skipValue {
+			length = tlv.Length()
+			value = tlv.Value()
+		}
 
 		buf.WriteByte(byte(tag >> 8))
 		buf.WriteByte(byte(tag & 0xff))
