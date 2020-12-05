@@ -21,8 +21,8 @@ func (m *Marker) ReadFromBuffer(b *bytes.Reader) {
 
 func (b Marker) String() string {
 	if bytes.Compare(b.EndOfData[:], DefaultMarker.EndOfData[:]) == 0 {
-		return "<MARK>"
+		return "<END>"
 	} else {
-		return "<INVALID-MARK>"
+		return "<INVALID-END>"
 	}
 }
