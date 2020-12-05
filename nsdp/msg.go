@@ -21,6 +21,12 @@ func (m *Msg) UnmarshalBinary(buf []byte) error {
 	return m.UnmarshalBinaryBuffer(r)
 }
 
+func NewMsgFromBinary(buf []byte) (*Msg, error) {
+	msg := &Msg{}
+	err := msg.UnmarshalBinary(buf)
+	return msg, err
+}
+
 func (m *Msg) UnmarshalBinaryBuffer(buf *bytes.Reader) error {
 	err := m.Header.UnmarshalBinaryBuffer(buf)
 	if err != nil {

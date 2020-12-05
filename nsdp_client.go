@@ -105,15 +105,15 @@ func (c *Client) SendRecvMsg(msg *nsdp.Msg) (*nsdp.Msg, error) {
 	for retry < 3 {
 		select {
 		case <-recvCh:
-			resp := nsdp.ParseMsg(buf[:readLen])
-			if resp == nil {
+			resp, err := nsdp.NewMsgFromBinary(buf[:readLen])
+			if resp == nil || err != nil {
 				return resp, errors.New("Failed to respose message parse")
 			}
 			return resp, nil
 		case <-ticker.C:
-			b := msg.Bytes()
-			log.Println("send", b)
-			_, err := c.conn.WriteTo(b, c.targetAddr)
+			b, err := msg.MarshalBinary()
+			log.Println("send", b, err)
+			_, err = c.conn.WriteTo(b, c.targetAddr)
 			if err != nil {
 				return nil, err
 			}
