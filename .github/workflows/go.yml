@@ -36,6 +36,9 @@ jobs:
       run: go test -v ./...
 
   release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.1
       with:
