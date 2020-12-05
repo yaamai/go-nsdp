@@ -18,7 +18,8 @@ func (t PortVlanMembers) Length() uint16 {
 func (t PortVlanMembers) Value() []byte {
 	return []byte{}
 }
-func (t *PortVlanMembers) FromBytes(buf []byte) *PortVlanMembers {
+func NewPortVlanMembersFromBytes(buf []byte) *PortVlanMembers {
+	t := &PortVlanMembers{}
 	t.VlanID = int(buf[0])<<8 + int(buf[1])
 	t.Ports = parsePortsBits(buf[2:])
 	return t
@@ -47,7 +48,8 @@ func (t TagVlanMembers) Value() []byte {
 	// maybe len(tagged) and len(untagged) must be equal. but not checked
 	return append(vlanid, append(tagged, untagged...)...)
 }
-func (t *TagVlanMembers) FromBytes(buf []byte) *TagVlanMembers {
+func NewTagVlanMembersFromBytes(buf []byte) *TagVlanMembers {
+	t := &TagVlanMembers{}
 	t.VlanID = int(buf[0])<<8 + int(buf[1])
 	t.TaggedPorts = parsePortsBits(buf[2:3])
 	t.UnTaggedPorts = parsePortsBits(buf[3:4])

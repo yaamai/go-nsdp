@@ -42,7 +42,8 @@ func (t PortLinkStatus) Length() uint16 {
 func (t PortLinkStatus) Value() []byte {
 	return []byte{}
 }
-func (t *PortLinkStatus) FromBytes(b []byte) *PortLinkStatus {
+func NewPortLinkStatusFromBytes(b []byte) *PortLinkStatus {
+	t := &PortLinkStatus{}
 	t.Port = int(b[0])
 	switch int(b[1]) {
 	case 0:
@@ -90,7 +91,8 @@ func (t PortStatistics) Value() []byte {
 	return []byte{}
 }
 
-func (t *PortStatistics) FromBytes(b []byte) *PortStatistics {
+func NewPortStatisticsFromBytes(b []byte) *PortStatistics {
+	t := &PortStatistics{}
 	t.Port = int(b[0])
 	reader := bytes.NewReader(b[1:])
 

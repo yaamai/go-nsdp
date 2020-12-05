@@ -54,7 +54,7 @@ func (b *Body) UnmarshalBinaryBuffer(r *bytes.Reader) error {
 		value := make([]byte, length)
 		r.Read(value)
 
-		*b = append(*b, ParseTLVs(tag, length, value))
+		*b = append(*b, NewTLVFromBytes(tag, length, value))
 	}
 
 	return nil

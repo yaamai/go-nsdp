@@ -6,7 +6,7 @@ type TLV interface {
 	Value() []byte
 }
 
-func ParseTLVs(tag uint16, length uint16, value []byte) TLV {
+func NewTLVFromBytes(tag uint16, length uint16, value []byte) TLV {
 	switch tag {
 	case 0x0001:
 		return &ModelName{StringValue(value)}
@@ -17,13 +17,13 @@ func ParseTLVs(tag uint16, length uint16, value []byte) TLV {
 	case 0x001a:
 		return &AuthV2Password{BytesValue(value)}
 	case 0x0c00:
-		return (&PortLinkStatus{}).FromBytes(value)
+		return NewPortLinkStatusFromBytes(value)
 	case 0x1000:
-		return (&PortStatistics{}).FromBytes(value)
+		return NewPortStatisticsFromBytes(value)
 	case 0x2400:
-		return (&PortVlanMembers{}).FromBytes(value)
+		return NewPortVlanMembersFromBytes(value)
 	case 0x2800:
-		return (&TagVlanMembers{}).FromBytes(value)
+		return NewTagVlanMembersFromBytes(value)
 	}
 	return nil
 }
