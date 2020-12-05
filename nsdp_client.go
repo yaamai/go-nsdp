@@ -14,6 +14,8 @@ const (
 	DefaultRecvPort          = "63321"
 	DefaultSendPort          = "63322"
 	DefaultReceiveBufferSize = 0xffff
+	DefaultTransmitInterval  = time.Millisecond * 300
+	DefaultTransmitRetry     = 5
 )
 
 // get first non-loopback address, intf-name and mac
@@ -100,9 +102,9 @@ func (c *Client) SendRecvMsg(msg *nsdp.Msg) (*nsdp.Msg, error) {
 	}()
 
 	retry := 0
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(DefaultTransmitInterval)
 	defer ticker.Stop()
-	for retry < 3 {
+	for retry < DefaultTransmitRetry {
 		select {
 		case <-recvCh:
 			resp, err := nsdp.NewMsgFromBinary(buf[:readLen])
