@@ -24,6 +24,8 @@ func NewTLVFromBytes(tag uint16, length uint16, value []byte) TLV {
 		return NewPortVlanMembersFromBytes(value)
 	case 0x2800:
 		return NewTagVlanMembersFromBytes(value)
+	case 0x3000:
+		return NewTagVlanPVIDFromBytes(value)
 	}
 	return nil
 }

@@ -58,3 +58,29 @@ func NewTagVlanMembersFromBytes(buf []byte) *TagVlanMembers {
 func (t TagVlanMembers) String() string {
 	return fmt.Sprintf("{%d:%v,%v}", t.VlanID, t.TaggedPorts, t.UnTaggedPorts)
 }
+
+type TagVlanPVID struct {
+	PortID int
+	VlanID int
+}
+
+func (t TagVlanPVID) Tag() uint16 {
+	return 0x3000
+}
+func (t TagVlanPVID) Length() uint16 {
+	return uint16(len(t.Value()))
+}
+func (t TagVlanPVID) Value() []byte {
+	return []byte{
+		byte(t.PortID),
+		byte((t.VlanID >> 8) & 0xff), byte(t.VlanID & 0xff)}
+}
+func NewTagVlanPVIDFromBytes(buf []byte) *TagVlanPVID {
+	t := &TagVlanPVID{}
+	t.PortID = int(buf[0])
+	t.VlanID = int(buf[1])<<8 + int(buf[2])
+	return t
+}
+func (t TagVlanPVID) String() string {
+	return fmt.Sprintf("{%d:%d}", t.PortID, t.VlanID)
+}
