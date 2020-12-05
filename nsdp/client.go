@@ -1,8 +1,7 @@
-package main
+package nsdp
 
 import (
 	"errors"
-	"gs308e/nsdp"
 	"log"
 	"math/rand"
 	"net"
@@ -89,7 +88,7 @@ func NewClient(listenAddr, targetAddr *net.UDPAddr, sourceHwAddr net.HardwareAdd
 	}, nil
 }
 
-func (c *Client) SendRecvMsg(msg *nsdp.Msg) (*nsdp.Msg, error) {
+func (c *Client) SendRecvMsg(msg *Msg) (*Msg, error) {
 	c.seq = c.seq + 1
 
 	recvCh := make(chan bool, 1)
@@ -107,7 +106,7 @@ func (c *Client) SendRecvMsg(msg *nsdp.Msg) (*nsdp.Msg, error) {
 	for retry < DefaultTransmitRetry {
 		select {
 		case <-recvCh:
-			resp, err := nsdp.NewMsgFromBinary(buf[:readLen])
+			resp, err := NewMsgFromBinary(buf[:readLen])
 			if resp == nil || err != nil {
 				return resp, errors.New("Failed to respose message parse")
 			}
@@ -126,47 +125,47 @@ func (c *Client) SendRecvMsg(msg *nsdp.Msg) (*nsdp.Msg, error) {
 	return nil, errors.New("Failed to wait response")
 }
 
-func (c Client) makeReadMsg(tlvs ...nsdp.TLV) *nsdp.Msg {
-	m := nsdp.Msg(nsdp.DefaultMsg)
+func (c Client) makeReadMsg(tlvs ...TLV) *Msg {
+	m := Msg(DefaultMsg)
 	m.Op = 1
 	m.Seq = c.seq
 	m.HostMac = c.sourceHwAddr
-	m.Body = nsdp.Body(tlvs)
+	m.Body = Body(tlvs)
 
 	return &m
 }
 
-func (c *Client) Read(tlvs ...nsdp.TLV) (*nsdp.Msg, error) {
+func (c *Client) Read(tlvs ...TLV) (*Msg, error) {
 	return c.SendRecvMsg(c.makeReadMsg(tlvs...))
 }
 
-func (c Client) makeWriteMsg(tlvs ...nsdp.TLV) *nsdp.Msg {
-	m := nsdp.Msg(nsdp.DefaultMsg)
+func (c Client) makeWriteMsg(tlvs ...TLV) *Msg {
+	m := Msg(DefaultMsg)
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.sourceHwAddr
-	m.Body = nsdp.Body(tlvs)
+	m.Body = Body(tlvs)
 	return &m
 }
 
-func (c *Client) Write(tlvs ...nsdp.TLV) (*nsdp.Msg, error) {
+func (c *Client) Write(tlvs ...TLV) (*Msg, error) {
 	return c.SendRecvMsg(c.makeWriteMsg(tlvs...))
 }
 
-func (c *Client) WriteWithAuth(password string, tlvs ...nsdp.TLV) (*nsdp.Msg, error) {
+func (c *Client) WriteWithAuth(password string, tlvs ...TLV) (*Msg, error) {
 	if len(password) == 0 {
 		return nil, errors.New("maybe write operation need password")
 	}
 
-	resp, err := c.Read(nsdp.AuthV2PasswordSalt{})
+	resp, err := c.Read(AuthV2PasswordSalt{})
 	if err != nil {
 		return nil, err
 	}
 
 	mac := []byte(resp.Header.DeviceMac[:6]) // to format log clearly
-	salt := resp.Body[0].(*nsdp.AuthV2PasswordSalt).BytesValue
-	encodedPassword := nsdp.CalcAuthV2Password(password, mac, salt)
-	auth := nsdp.AuthV2Password{BytesValue: nsdp.BytesValue(encodedPassword)}
+	salt := resp.Body[0].(*AuthV2PasswordSalt).BytesValue
+	encodedPassword := CalcAuthV2Password(password, mac, salt)
+	auth := AuthV2Password{BytesValue: BytesValue(encodedPassword)}
 
 	msg := c.makeWriteMsg()
 	msg.DeviceMac = mac

@@ -1,4 +1,4 @@
-module gs308e
+module github.com/yaamai/go-nsdp
 
 go 1.13
 

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gs308e/nsdp"
+	"github.com/yaamai/go-nsdp/nsdp"
 	"log"
 	"os"
 	"strconv"
@@ -79,7 +79,7 @@ func main() {
 	action := positionalArgs[0]
 	tlvs := ConvertCmdsToTLVs(positionalArgs[1:])
 
-	c, err := NewDefaultClient()
+	c, err := nsdp.NewDefaultClient()
 	if err != nil {
 		log.Fatalln(err)
 	}
