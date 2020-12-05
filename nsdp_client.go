@@ -129,7 +129,7 @@ func (c Client) makeReadMsg(tlvs ...nsdp.TLV) *nsdp.Msg {
 	m.Op = 1
 	m.Seq = c.seq
 	m.HostMac = c.sourceHwAddr
-	m.Body = nsdp.Body{Body: tlvs}
+	m.Body = nsdp.Body(tlvs)
 
 	return &m
 }
@@ -143,7 +143,7 @@ func (c Client) makeWriteMsg(tlvs ...nsdp.TLV) *nsdp.Msg {
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.sourceHwAddr
-	m.Body = nsdp.Body{Body: tlvs}
+	m.Body = nsdp.Body(tlvs)
 	return &m
 }
 
@@ -162,13 +162,13 @@ func (c *Client) WriteWithAuth(password string, tlvs ...nsdp.TLV) (*nsdp.Msg, er
 	}
 
 	mac := []byte(resp.Header.DeviceMac[:6]) // to format log clearly
-	salt := resp.Body.Body[0].(*nsdp.AuthV2PasswordSalt).BytesValue
+	salt := resp.Body[0].(*nsdp.AuthV2PasswordSalt).BytesValue
 	encodedPassword := nsdp.CalcAuthV2Password(password, mac, salt)
 	auth := nsdp.AuthV2Password{BytesValue: nsdp.BytesValue(encodedPassword)}
 
 	msg := c.makeWriteMsg()
 	msg.DeviceMac = mac
-	msg.Body.Body = append(msg.Body.Body, auth)
-	msg.Body.Body = append(msg.Body.Body, tlvs...)
+	msg.Body = append(msg.Body, auth)
+	msg.Body = append(msg.Body, tlvs...)
 	return c.SendRecvMsg(msg)
 }

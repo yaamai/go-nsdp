@@ -4,12 +4,10 @@ import (
 	"bytes"
 )
 
-type Body struct {
-	Body []TLV
-}
+type Body []TLV
 
 func (b Body) WriteToBuffer(buf *bytes.Buffer, skipValue bool) {
-	for _, tlv := range b.Body {
+	for _, tlv := range b {
 		tag := tlv.Tag()
 
 		length := uint16(0)
@@ -38,6 +36,6 @@ func (b *Body) ReadFromBuffer(buf *bytes.Reader) {
 		value := make([]byte, length)
 		buf.Read(value)
 
-		b.Body = append(b.Body, ParseTLVs(tag, length, value))
+		*b = append(*b, ParseTLVs(tag, length, value))
 	}
 }
