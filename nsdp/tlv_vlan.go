@@ -5,12 +5,12 @@ import (
 )
 
 type PortVlanMembers struct {
-	VlanID int
-	Ports  []int
+	VlanID int   `json:"vlan_id"`
+	Ports  []int `json:"ports"`
 }
 
-func (t PortVlanMembers) Tag() uint16 {
-	return 0x2400
+func (t PortVlanMembers) Tag() Tag {
+	return TagPortVlanMembers
 }
 func (t PortVlanMembers) Length() uint16 {
 	return uint16(0)
@@ -29,13 +29,13 @@ func (t PortVlanMembers) String() string {
 }
 
 type TagVlanMembers struct {
-	VlanID        int
-	TaggedPorts   []int
-	UnTaggedPorts []int
+	VlanID        int   `json:"vlan_id"`
+	TaggedPorts   []int `json:"tagged_ports"`
+	UnTaggedPorts []int `json:"untagged_ports"`
 }
 
-func (t TagVlanMembers) Tag() uint16 {
-	return 0x2800
+func (t TagVlanMembers) Tag() Tag {
+	return TagTagVlanMembers
 }
 func (t TagVlanMembers) Length() uint16 {
 	return uint16(len(t.Value()))
@@ -60,12 +60,12 @@ func (t TagVlanMembers) String() string {
 }
 
 type TagVlanPVID struct {
-	PortID int
-	VlanID int
+	PortID int `json:"port_id"`
+	VlanID int `json:"vlan_id"`
 }
 
-func (t TagVlanPVID) Tag() uint16 {
-	return 0x3000
+func (t TagVlanPVID) Tag() Tag {
+	return TagTagVlanPVID
 }
 func (t TagVlanPVID) Length() uint16 {
 	return uint16(len(t.Value()))

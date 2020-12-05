@@ -28,13 +28,13 @@ func (s PortDuplex) String() string {
 }
 
 type PortLinkStatus struct {
-	Port   int
-	Speed  int
-	Duplex PortDuplex
+	Port   int        `json:"port_id"`
+	Speed  int        `json:"speed"`
+	Duplex PortDuplex `json:"duplex"`
 }
 
-func (t PortLinkStatus) Tag() uint16 {
-	return 0x0c00
+func (t PortLinkStatus) Tag() Tag {
+	return TagPortLinkStatus
 }
 func (t PortLinkStatus) Length() uint16 {
 	return uint16(0)
@@ -72,17 +72,17 @@ func (t PortLinkStatus) String() string {
 }
 
 type PortStatistics struct {
-	Port      int
-	Recv      uint64
-	Send      uint64
-	Pkt       uint64
-	Broadcast uint64
-	Multicast uint64
-	Error     uint64
+	Port      int    `json:"port_id"`
+	Recv      uint64 `json:"receives"`
+	Send      uint64 `json:"send"`
+	Pkt       uint64 `json:"packets"`
+	Broadcast uint64 `json:"broadcasts"`
+	Multicast uint64 `json:"multicasts"`
+	Error     uint64 `json:"errors"`
 }
 
-func (t PortStatistics) Tag() uint16 {
-	return 0x1000
+func (t PortStatistics) Tag() Tag {
+	return TagPortStatistics
 }
 func (t PortStatistics) Length() uint16 {
 	return uint16(0)

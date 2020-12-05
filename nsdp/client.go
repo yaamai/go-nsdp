@@ -1,7 +1,7 @@
 package nsdp
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"math/rand"
 	"net"
 	"time"
@@ -106,7 +106,7 @@ func (c *Client) SendRecvMsg(msg *Msg) (*Msg, error) {
 		case <-recvCh:
 			resp, err := NewMsgFromBinary(buf[:readLen])
 			if resp == nil || err != nil {
-				return resp, errors.New("Failed to respose message parse")
+				return resp, errors.Wrap(err, "Failed to respose message parse")
 			}
 			return resp, nil
 		case <-ticker.C:

@@ -2,6 +2,7 @@ package nsdp
 
 import (
 	"bytes"
+	"errors"
 )
 
 type Body []TLV
@@ -54,7 +55,11 @@ func (b *Body) UnmarshalBinaryBuffer(r *bytes.Reader) error {
 		value := make([]byte, length)
 		r.Read(value)
 
-		*b = append(*b, NewTLVFromBytes(tag, length, value))
+		tlv := NewTLVFromBytes(tag, length, value)
+		if tlv == nil {
+			return errors.New("not supported tlv found")
+		}
+		*b = append(*b, tlv)
 	}
 
 	return nil

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/yaamai/go-nsdp/nsdp"
@@ -43,6 +44,18 @@ func ConvertCmdsToTLVs(cmds []string) []nsdp.TLV {
 			result = append(result, nsdp.ModelName{})
 		case "host-name":
 			result = append(result, nsdp.HostName{})
+		case "macaddr":
+			result = append(result, nsdp.MacAddress{})
+		case "ipaddr":
+			result = append(result, nsdp.HostIPAddress{})
+		case "netmask":
+			result = append(result, nsdp.Netmask{})
+		case "gateway":
+			result = append(result, nsdp.GatewayAddress{})
+		case "port-link-stat":
+			result = append(result, nsdp.PortLinkStatus{})
+		case "port-stat":
+			result = append(result, nsdp.PortStatistics{})
 		case "tag-vlan-pvid":
 			tlv := nsdp.TagVlanPVID{}
 			if len(params) > 2 {
@@ -91,17 +104,41 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	var (
+		resp *nsdp.Msg
+	)
 	if action == "set" {
-		resp, err := c.WriteWithAuth(*password, tlvs...)
+		resp, err = c.WriteWithAuth(*password, tlvs...)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.Printf("%v", resp)
 	} else {
-		resp, err := c.Read(tlvs...)
+		resp, err = c.Read(tlvs...)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.Printf("%v", resp)
 	}
+
+	// to pretty output TLVs, make map
+	tlvMap := map[string]interface{}{}
+	for _, tlv := range resp.Body {
+		tagName := tlv.Tag().String()
+		if _, ok := tlvMap[tagName]; ok {
+			// if same Tag present, aggregate to array
+			array, ok := tlvMap[tagName].([]nsdp.TLV)
+			if !ok {
+				prevValue := tlvMap[tagName]
+				tlvMap[tagName] = []nsdp.TLV{prevValue.(nsdp.TLV), tlv}
+			} else {
+				tlvMap[tagName] = append(array, tlv)
+			}
+		} else {
+			tlvMap[tagName] = tlv
+		}
+	}
+	jsonBytes, err := json.MarshalIndent(tlvMap, "", "  ")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(jsonBytes))
 }

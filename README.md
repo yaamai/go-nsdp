@@ -6,6 +6,13 @@ NSDP(Netgear Switch Discovery Protocol) client library for go
 
 # usage
 ```
-# ./nsdp-cli query host-name model-name
+# nsdp-cli query model-name host-name ipaddr mac
+{
+  "host_name": "foobar",
+  "model_name": "GS308E"
+  "ip": "192.168.1.111",
+}
+
 # ./nsdp-cli -password <password> set tag-vlan:1000:1,2,3,4,5,6,7:
+{}
 ```
