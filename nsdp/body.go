@@ -7,12 +7,21 @@ import (
 type Body []TLV
 
 func (b Body) MarshalBinary() ([]byte, error) {
-	return b.MarshalBinaryWithOption(false)
+	buf := bytes.Buffer{}
+	err := b.MarshalBinaryBufferWithOption(&buf, false)
+	return buf.Bytes(), err
 }
 
-func (b Body) MarshalBinaryWithOption(skipValue bool) ([]byte, error) {
-	buf := bytes.Buffer{}
+func (b *Body) UnmarshalBinary(buf []byte) error {
+	r := bytes.NewReader(buf)
+	return b.UnmarshalBinaryBuffer(r)
+}
 
+func (b Body) MarshalBinaryBuffer(buf *bytes.Buffer) error {
+	return b.MarshalBinaryBufferWithOption(buf, true)
+}
+
+func (b Body) MarshalBinaryBufferWithOption(buf *bytes.Buffer, skipValue bool) error {
 	for _, tlv := range b {
 		tag := tlv.Tag()
 
@@ -30,12 +39,10 @@ func (b Body) MarshalBinaryWithOption(skipValue bool) ([]byte, error) {
 		buf.Write(value)
 	}
 
-	return buf.Bytes(), nil
+	return nil
 }
 
-func (b *Body) UnmarshalBinary(buf []byte) error {
-	r := bytes.NewReader(buf)
-
+func (b *Body) UnmarshalBinaryBuffer(r *bytes.Reader) error {
 	for r.Len() > 4 {
 		tag := readUint16(r)
 		length := readUint16(r)

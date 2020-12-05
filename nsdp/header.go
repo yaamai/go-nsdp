@@ -7,15 +7,27 @@ import (
 	"net"
 )
 
+const (
+	HeaderLength = 32
+)
+
 type ResultCode int
 
 const (
 	ResultSuccess     ResultCode = iota
 	ResultInvalidAuth            = 0x0013
 )
-const (
-	HeaderLength = 32
-)
+
+func (c ResultCode) String() string {
+	switch c {
+	case ResultSuccess:
+		return "Success"
+	case ResultInvalidAuth:
+		return "InvalidAuth"
+	default:
+		return "UnknownError"
+	}
+}
 
 type Header struct {
 	Version   int8
@@ -32,6 +44,15 @@ type Header struct {
 
 func (h Header) MarshalBinary() ([]byte, error) {
 	buf := bytes.Buffer{}
+	err := h.MarshalBinaryBuffer(&buf)
+	return buf.Bytes(), err
+}
+func (h *Header) UnmarshalBinary(buf []byte) error {
+	r := bytes.NewReader(buf)
+	return h.UnmarshalBinaryBuffer(r)
+}
+
+func (h Header) MarshalBinaryBuffer(buf *bytes.Buffer) error {
 
 	buf.WriteByte(byte(h.Version))
 	buf.WriteByte(byte(h.Op))
@@ -46,11 +67,10 @@ func (h Header) MarshalBinary() ([]byte, error) {
 	buf.Write(h.Signature[:])
 	buf.Write(h.Unknown3[:])
 
-	return buf.Bytes(), nil
+	return nil
 }
 
-func (h *Header) UnmarshalBinary(buf []byte) error {
-	r := bytes.NewReader(buf)
+func (h *Header) UnmarshalBinaryBuffer(r *bytes.Reader) error {
 	if r.Len() < 32 {
 		return errors.New("too short header length")
 	}
@@ -71,5 +91,5 @@ func (h *Header) UnmarshalBinary(buf []byte) error {
 }
 
 func (h Header) String() string {
-	return fmt.Sprintf("V: %d, Op: %d(%d), HostMAC: %v, DevMAC: %v, Seq: %d", h.Version, h.Op, h.Result, h.HostMac, h.DeviceMac, h.Seq)
+	return fmt.Sprintf("V: %d, Op: %d(%v), HostMAC: %v, DevMAC: %v, Seq: %d", h.Version, h.Op, h.Result, h.HostMac, h.DeviceMac, h.Seq)
 }

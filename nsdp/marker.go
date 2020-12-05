@@ -14,11 +14,21 @@ type Marker struct {
 }
 
 func (m Marker) MarshalBinary() ([]byte, error) {
-	return m.EndOfData[:], nil
+	buf := bytes.Buffer{}
+	err := m.MarshalBinaryBuffer(&buf)
+	return buf.Bytes(), err
 }
-
 func (m *Marker) UnmarshalBinary(buf []byte) error {
 	r := bytes.NewReader(buf)
+	return m.UnmarshalBinaryBuffer(r)
+}
+
+func (m Marker) MarshalBinaryBuffer(buf *bytes.Buffer) error {
+	buf.Write(m.EndOfData[:])
+	return nil
+}
+
+func (m *Marker) UnmarshalBinaryBuffer(r *bytes.Reader) error {
 	if r.Len() < 4 {
 		return errors.New("too short end of tlv marker")
 	}
