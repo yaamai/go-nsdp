@@ -46,28 +46,23 @@ func ConvertCmdsToTLVs(cmds []string) []nsdp.TLV {
 		case "tag-vlan-pvid":
 			tlv := nsdp.TagVlanPVID{}
 			if len(params) > 2 {
-				portId, err := strconv.Atoi(params[1])
-				if err != nil {
-					continue
+				portId, err1 := strconv.Atoi(params[1])
+				vlanId, err2 := strconv.Atoi(params[2])
+				if err1 == nil && err2 == nil {
+					tlv.PortID = portId
+					tlv.VlanID = vlanId
 				}
-				vlanId, err := strconv.Atoi(params[2])
-				if err != nil {
-					continue
-				}
-				tlv.PortID = portId
-				tlv.VlanID = vlanId
 			}
 			result = append(result, tlv)
 		case "tag-vlan":
 			tlv := nsdp.TagVlanMembers{}
 			if len(params) > 3 {
 				vlanId, err := strconv.Atoi(params[1])
-				if err != nil {
-					continue
+				if err == nil {
+					tlv.VlanID = vlanId
+					tlv.TaggedPorts = SplitInts(params[2], ",")
+					tlv.UnTaggedPorts = SplitInts(params[3], ",")
 				}
-				tlv.VlanID = vlanId
-				tlv.TaggedPorts = SplitInts(params[2], ",")
-				tlv.UnTaggedPorts = SplitInts(params[3], ",")
 			}
 			result = append(result, tlv)
 		}
