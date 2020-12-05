@@ -311,5 +311,5 @@ func (t *TagVlanMembers) FromBytes(buf []byte) *TagVlanMembers {
 	return t
 }
 func (t TagVlanMembers) String() string {
-	return fmt.Sprintf("%d:%v,%v", t.VlanID, t.TaggedPorts, t.UnTaggedPorts)
+	return fmt.Sprintf("{%d:%v,%v}", t.VlanID, t.TaggedPorts, t.UnTaggedPorts)
 }

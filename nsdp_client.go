@@ -1,11 +1,19 @@
 package main
 
 import (
+	"errors"
 	"gs308e/nsdp"
 	"log"
 	"math/rand"
 	"net"
 	"time"
+)
+
+const (
+	DefaultDestAddr          = "255.255.255.255"
+	DefaultRecvPort          = "63321"
+	DefaultSendPort          = "63322"
+	DefaultReceiveBufferSize = 0xffff
 )
 
 // get first non-loopback address, intf-name and mac
@@ -34,26 +42,22 @@ func getSelfIntfAndIp() (string, string, []byte, error) {
 }
 
 type Client struct {
-	anyAddr    *net.UDPAddr
-	targetAddr *net.UDPAddr
-	intfName   string
-	intfHwAddr []byte
-	conn       *net.UDPConn
-	seq        uint16
+	listenAddr   *net.UDPAddr
+	targetAddr   *net.UDPAddr
+	sourceHwAddr net.HardwareAddr
+	password     []byte
+	targetHwAddr net.HardwareAddr
+	conn         *net.UDPConn
+	seq          uint16
 }
 
-func NewClient() (*Client, error) {
-	selfAddrStr, intfName, intfHwAddr, err := getSelfIntfAndIp()
+func NewDefaultClient() (*Client, error) {
+	selfAddrStr, _, intfHwAddr, err := getSelfIntfAndIp()
 	if err != nil {
 		return nil, err
 	}
 
-	selfAddr, err := net.ResolveUDPAddr("udp", selfAddrStr+":63321")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := net.ListenUDP("udp", selfAddr)
+	selfAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(selfAddrStr, DefaultRecvPort))
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +67,11 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 
-	targetAddr, err := net.ResolveUDPAddr("udp", "192.168.132.170:63322")
+	return NewClient(selfAddr, anyAddr, net.HardwareAddr(intfHwAddr))
+}
+
+func NewClient(listenAddr, targetAddr *net.UDPAddr, sourceHwAddr net.HardwareAddr) (*Client, error) {
+	conn, err := net.ListenUDP("udp", listenAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -71,23 +79,21 @@ func NewClient() (*Client, error) {
 	// to avoid ignore msg, set random sequence number
 	rand.Seed(time.Now().UnixNano())
 	seq := uint16(rand.Intn(0xffff))
-	log.Println(seq)
 
 	return &Client{
-		anyAddr:    anyAddr,
-		targetAddr: targetAddr,
-		conn:       conn,
-		intfHwAddr: intfHwAddr,
-		intfName:   intfName,
-		seq:        seq,
+		listenAddr:   listenAddr,
+		targetAddr:   targetAddr,
+		sourceHwAddr: sourceHwAddr,
+		conn:         conn,
+		seq:          seq,
 	}, nil
 }
 
-func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
+func (c *Client) SendRecvMsg(msg nsdp.Msg) (*nsdp.Msg, error) {
 	c.seq = c.seq + 1
 
 	recvCh := make(chan bool, 1)
-	buf := make([]byte, 65535)
+	buf := make([]byte, DefaultReceiveBufferSize)
 	readLen := 0
 	go func() {
 		readLen, _, _ = c.conn.ReadFrom(buf)
@@ -101,38 +107,87 @@ func (c *Client) SendRecvMsg(msg nsdp.Msg) *nsdp.Msg {
 	for retry < 3 {
 		select {
 		case <-recvCh:
-			return nsdp.ParseMsg(buf[:readLen])
+			resp := nsdp.ParseMsg(buf[:readLen])
+			if resp == nil {
+				return resp, errors.New("Failed to respose message parse")
+			}
+			return resp, nil
 		case <-ticker.C:
 			b := msg.Bytes()
 			log.Println("send", b)
-			writeLen, err := c.conn.WriteTo(b, c.anyAddr)
+			_, err := c.conn.WriteTo(b, c.targetAddr)
 			if err != nil {
-				log.Println(writeLen, err)
+				return nil, err
 			}
 			retry += 1
 		}
 	}
 
+	return nil, errors.New("Failed to wait response")
+}
+
+func (c *Client) Login(password string) error {
+	if password == "" {
+		return errors.New("empty password")
+	}
+
+	resp, err := c.Read(nsdp.AuthV2PasswordSalt{})
+	if err != nil {
+		return err
+	}
+
+	mac := []byte(resp.Header.DeviceMac[:6]) // to format log clearly
+	salt := resp.Body.Body[0].(*nsdp.AuthV2PasswordSalt).BytesValue
+	encodedPassword := nsdp.CalcAuthV2Password(password, mac, salt)
+	auth := nsdp.AuthV2Password{BytesValue: nsdp.BytesValue(encodedPassword)}
+
+	log.Printf("%s, %x, %x", password, mac, salt)
+
+	resp, err = c.Write(auth)
+	if err != nil {
+		return err
+	}
+
+	if resp.Result != 0 {
+		return errors.New("switch returns login error")
+	}
+
+	c.password = encodedPassword
+	c.targetHwAddr = mac
+
 	return nil
 }
 
-func (c *Client) Read(msg ...nsdp.TLV) *nsdp.Msg {
+func (c *Client) Read(msg ...nsdp.TLV) (*nsdp.Msg, error) {
 	m := nsdp.Msg(nsdp.DefaultMsg)
 	m.Op = 1
 	m.Seq = c.seq
-	m.HostMac = c.intfHwAddr
+	m.HostMac = c.sourceHwAddr
 	m.Body = nsdp.Body{Body: msg}
 
 	return c.SendRecvMsg(m)
 }
 
-func (c *Client) Write(msg ...nsdp.TLV) *nsdp.Msg {
+func (c *Client) WriteWithAuth(msg ...nsdp.TLV) (*nsdp.Msg, error) {
+	if len(c.password) == 0 {
+		return nil, errors.New("maybe write operation need password")
+	}
+	auth := nsdp.AuthV2Password{BytesValue: nsdp.BytesValue(c.password)}
+	msg = append([]nsdp.TLV{auth}, msg...)
+
+	return c.Write(msg...)
+}
+
+func (c *Client) Write(msg ...nsdp.TLV) (*nsdp.Msg, error) {
 	m := nsdp.Msg(nsdp.DefaultMsg)
 	m.Op = 3
 	m.Seq = c.seq
-	m.HostMac = c.intfHwAddr
-	m.DeviceMac = []byte{0x44, 0xa5, 0x6e, 0x11, 0x11, 0x11}
+	m.HostMac = c.sourceHwAddr
 	m.Body = nsdp.Body{Body: msg}
+	if len(c.targetHwAddr) != 0 {
+		m.DeviceMac = c.targetHwAddr
+	}
 
+	log.Println(m)
 	return c.SendRecvMsg(m)
 }
