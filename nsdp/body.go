@@ -6,7 +6,13 @@ import (
 
 type Body []TLV
 
-func (b Body) WriteToBuffer(buf *bytes.Buffer, skipValue bool) {
+func (b Body) MarshalBinary() ([]byte, error) {
+	return b.MarshalBinaryWithOption(false)
+}
+
+func (b Body) MarshalBinaryWithOption(skipValue bool) ([]byte, error) {
+	buf := bytes.Buffer{}
+
 	for _, tlv := range b {
 		tag := tlv.Tag()
 
@@ -23,19 +29,26 @@ func (b Body) WriteToBuffer(buf *bytes.Buffer, skipValue bool) {
 		buf.WriteByte(byte(length & 0xff))
 		buf.Write(value)
 	}
-}
-func (b *Body) ReadFromBuffer(buf *bytes.Reader) {
-	for buf.Len() > 4 {
-		tag := uint16(readInt16(buf))
-		length := uint16(readInt16(buf))
 
-		if buf.Len() < int(length) {
+	return buf.Bytes(), nil
+}
+
+func (b *Body) UnmarshalBinary(buf []byte) error {
+	r := bytes.NewReader(buf)
+
+	for r.Len() > 4 {
+		tag := readUint16(r)
+		length := readUint16(r)
+
+		if r.Len() < int(length) {
 			break
 		}
 
 		value := make([]byte, length)
-		buf.Read(value)
+		r.Read(value)
 
 		*b = append(*b, ParseTLVs(tag, length, value))
 	}
+
+	return nil
 }

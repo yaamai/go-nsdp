@@ -2,21 +2,29 @@ package nsdp
 
 import (
 	"bytes"
+	"errors"
+)
+
+const (
+	MarkerLength = 4
 )
 
 type Marker struct {
 	EndOfData [4]byte
 }
 
-func (m Marker) WriteToBuffer(b *bytes.Buffer) {
-	b.Write(m.EndOfData[:])
+func (m Marker) MarshalBinary() ([]byte, error) {
+	return m.EndOfData[:], nil
 }
 
-func (m *Marker) ReadFromBuffer(b *bytes.Reader) {
-	if b.Len() < 4 {
-		return
+func (m *Marker) UnmarshalBinary(buf []byte) error {
+	r := bytes.NewReader(buf)
+	if r.Len() < 4 {
+		return errors.New("too short end of tlv marker")
 	}
-	b.Read(m.EndOfData[:])
+	r.Read(m.EndOfData[:])
+
+	return nil
 }
 
 func (b Marker) String() string {

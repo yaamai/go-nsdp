@@ -16,6 +16,11 @@ func readInt8(b *bytes.Reader) int8 {
 	v, _ := b.ReadByte()
 	return int8(v)
 }
+
+func readUint16(b *bytes.Reader) uint16 {
+	return uint16(readInt16(b))
+}
+
 func readInt16(b *bytes.Reader) int16 {
 	v1, _ := b.ReadByte()
 	v2, _ := b.ReadByte()

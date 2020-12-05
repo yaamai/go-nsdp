@@ -2,6 +2,7 @@ package nsdp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 )
@@ -11,6 +12,9 @@ type ResultCode int
 const (
 	ResultSuccess     ResultCode = iota
 	ResultInvalidAuth            = 0x0013
+)
+const (
+	HeaderLength = 32
 )
 
 type Header struct {
@@ -26,37 +30,44 @@ type Header struct {
 	Unknown3  [4]byte
 }
 
-func (h Header) WriteToBuffer(b *bytes.Buffer) {
-	b.WriteByte(byte(h.Version))
-	b.WriteByte(byte(h.Op))
-	b.WriteByte(byte(h.Result >> 8))
-	b.WriteByte(byte(h.Result & 0xff))
-	b.Write(h.Unknown1[:])
-	b.Write(h.HostMac)
-	b.Write(h.DeviceMac)
-	b.Write(h.Unknown2[:])
-	b.WriteByte(byte(h.Seq >> 8))
-	b.WriteByte(byte(h.Seq & 0xff))
-	b.Write(h.Signature[:])
-	b.Write(h.Unknown3[:])
+func (h Header) MarshalBinary() ([]byte, error) {
+	buf := bytes.Buffer{}
+
+	buf.WriteByte(byte(h.Version))
+	buf.WriteByte(byte(h.Op))
+	buf.WriteByte(byte(h.Result >> 8))
+	buf.WriteByte(byte(h.Result & 0xff))
+	buf.Write(h.Unknown1[:])
+	buf.Write(h.HostMac)
+	buf.Write(h.DeviceMac)
+	buf.Write(h.Unknown2[:])
+	buf.WriteByte(byte(h.Seq >> 8))
+	buf.WriteByte(byte(h.Seq & 0xff))
+	buf.Write(h.Signature[:])
+	buf.Write(h.Unknown3[:])
+
+	return buf.Bytes(), nil
 }
 
-func (h *Header) ReadFromBuffer(b *bytes.Reader) {
-	if b.Len() < 32 {
-		return
+func (h *Header) UnmarshalBinary(buf []byte) error {
+	r := bytes.NewReader(buf)
+	if r.Len() < 32 {
+		return errors.New("too short header length")
 	}
-	h.Version = readInt8(b)
-	h.Op = readInt8(b)
-	h.Result = readInt16(b)
-	b.Read(h.Unknown1[:])
+	h.Version = readInt8(r)
+	h.Op = readInt8(r)
+	h.Result = readInt16(r)
+	r.Read(h.Unknown1[:])
 	h.HostMac = make([]byte, 6)
-	b.Read(h.HostMac[:])
+	r.Read(h.HostMac[:])
 	h.DeviceMac = make([]byte, 6)
-	b.Read(h.DeviceMac[:])
-	b.Read(h.Unknown2[:])
-	h.Seq = uint16(readInt16(b))
-	b.Read(h.Signature[:])
-	b.Read(h.Unknown3[:])
+	r.Read(h.DeviceMac[:])
+	r.Read(h.Unknown2[:])
+	h.Seq = readUint16(r)
+	r.Read(h.Signature[:])
+	r.Read(h.Unknown3[:])
+
+	return nil
 }
 
 func (h Header) String() string {

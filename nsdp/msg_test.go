@@ -1,15 +1,14 @@
 package nsdp
 
 import (
-	"bytes"
 	"github.com/stretchr/testify/assert"
 	"net"
 	"testing"
 )
 
 func TestEmptyMsg(t *testing.T) {
-	b := bytes.Buffer{}
-	DefaultMsg.WriteToBuffer(&b)
+	buf, err := DefaultMsg.MarshalBinary()
+	assert.Nil(t, err)
 
 	empty := []byte{
 		0x01,
@@ -26,7 +25,7 @@ func TestEmptyMsg(t *testing.T) {
 		//		0x00, 0x00, 0xff, 0xff,
 	}
 
-	assert.Equal(t, empty, b.Bytes())
+	assert.Equal(t, empty, buf)
 }
 
 func TestMsgParse(t *testing.T) {
@@ -53,7 +52,8 @@ func TestMsgParse(t *testing.T) {
 		Marker: Marker{EndOfData: [4]uint8{0xff, 0xff, 0x0, 0x0}},
 	}
 
-	msg := ParseMsg(input)
+	msg := &Msg{}
+	msg.UnmarshalBinary(input)
 
 	assert.Equal(t, expected, msg)
 }
