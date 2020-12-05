@@ -44,6 +44,9 @@ func ConvertCmdsToTLVs(cmds []string) []nsdp.TLV {
 		case "host-name":
 			result = append(result, nsdp.HostName{})
 		case "tag-vlan":
+			if len(params) < 3 {
+				continue
+			}
 			vlanId, err := strconv.Atoi(params[1])
 			if err != nil {
 				continue
