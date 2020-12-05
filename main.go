@@ -16,13 +16,9 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = c.Login(*password)
-	if err != nil {
-		log.Fatalln(err)
-	}
 
 	vlan := nsdp.TagVlanMembers{VlanID: 1000, TaggedPorts: []int{7, 8}, UnTaggedPorts: []int{}}
-	resp, err := c.WriteWithAuth(vlan)
+	resp, err := c.WriteWithAuth(*password, vlan)
 	if err != nil {
 		log.Fatalln(err)
 	}

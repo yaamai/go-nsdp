@@ -45,8 +45,6 @@ type Client struct {
 	listenAddr   *net.UDPAddr
 	targetAddr   *net.UDPAddr
 	sourceHwAddr net.HardwareAddr
-	password     []byte
-	targetHwAddr net.HardwareAddr
 	conn         *net.UDPConn
 	seq          uint16
 }
@@ -89,7 +87,7 @@ func NewClient(listenAddr, targetAddr *net.UDPAddr, sourceHwAddr net.HardwareAdd
 	}, nil
 }
 
-func (c *Client) SendRecvMsg(msg nsdp.Msg) (*nsdp.Msg, error) {
+func (c *Client) SendRecvMsg(msg *nsdp.Msg) (*nsdp.Msg, error) {
 	c.seq = c.seq + 1
 
 	recvCh := make(chan bool, 1)
@@ -126,14 +124,41 @@ func (c *Client) SendRecvMsg(msg nsdp.Msg) (*nsdp.Msg, error) {
 	return nil, errors.New("Failed to wait response")
 }
 
-func (c *Client) Login(password string) error {
-	if password == "" {
-		return errors.New("empty password")
+func (c Client) makeReadMsg(tlvs ...nsdp.TLV) *nsdp.Msg {
+	m := nsdp.Msg(nsdp.DefaultMsg)
+	m.Op = 1
+	m.Seq = c.seq
+	m.HostMac = c.sourceHwAddr
+	m.Body = nsdp.Body{Body: tlvs}
+
+	return &m
+}
+
+func (c *Client) Read(tlvs ...nsdp.TLV) (*nsdp.Msg, error) {
+	return c.SendRecvMsg(c.makeReadMsg(tlvs...))
+}
+
+func (c Client) makeWriteMsg(tlvs ...nsdp.TLV) *nsdp.Msg {
+	m := nsdp.Msg(nsdp.DefaultMsg)
+	m.Op = 3
+	m.Seq = c.seq
+	m.HostMac = c.sourceHwAddr
+	m.Body = nsdp.Body{Body: tlvs}
+	return &m
+}
+
+func (c *Client) Write(tlvs ...nsdp.TLV) (*nsdp.Msg, error) {
+	return c.SendRecvMsg(c.makeWriteMsg(tlvs...))
+}
+
+func (c *Client) WriteWithAuth(password string, tlvs ...nsdp.TLV) (*nsdp.Msg, error) {
+	if len(password) == 0 {
+		return nil, errors.New("maybe write operation need password")
 	}
 
 	resp, err := c.Read(nsdp.AuthV2PasswordSalt{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mac := []byte(resp.Header.DeviceMac[:6]) // to format log clearly
@@ -141,53 +166,9 @@ func (c *Client) Login(password string) error {
 	encodedPassword := nsdp.CalcAuthV2Password(password, mac, salt)
 	auth := nsdp.AuthV2Password{BytesValue: nsdp.BytesValue(encodedPassword)}
 
-	log.Printf("%s, %x, %x", password, mac, salt)
-
-	resp, err = c.Write(auth)
-	if err != nil {
-		return err
-	}
-
-	if resp.Result != 0 {
-		return errors.New("switch returns login error")
-	}
-
-	c.password = encodedPassword
-	c.targetHwAddr = mac
-
-	return nil
-}
-
-func (c *Client) Read(msg ...nsdp.TLV) (*nsdp.Msg, error) {
-	m := nsdp.Msg(nsdp.DefaultMsg)
-	m.Op = 1
-	m.Seq = c.seq
-	m.HostMac = c.sourceHwAddr
-	m.Body = nsdp.Body{Body: msg}
-
-	return c.SendRecvMsg(m)
-}
-
-func (c *Client) WriteWithAuth(msg ...nsdp.TLV) (*nsdp.Msg, error) {
-	if len(c.password) == 0 {
-		return nil, errors.New("maybe write operation need password")
-	}
-	auth := nsdp.AuthV2Password{BytesValue: nsdp.BytesValue(c.password)}
-	msg = append([]nsdp.TLV{auth}, msg...)
-
-	return c.Write(msg...)
-}
-
-func (c *Client) Write(msg ...nsdp.TLV) (*nsdp.Msg, error) {
-	m := nsdp.Msg(nsdp.DefaultMsg)
-	m.Op = 3
-	m.Seq = c.seq
-	m.HostMac = c.sourceHwAddr
-	m.Body = nsdp.Body{Body: msg}
-	if len(c.targetHwAddr) != 0 {
-		m.DeviceMac = c.targetHwAddr
-	}
-
-	log.Println(m)
-	return c.SendRecvMsg(m)
+	msg := c.makeWriteMsg()
+	msg.DeviceMac = mac
+	msg.Body.Body = append(msg.Body.Body, auth)
+	msg.Body.Body = append(msg.Body.Body, tlvs...)
+	return c.SendRecvMsg(msg)
 }

@@ -6,6 +6,13 @@ import (
 	"net"
 )
 
+type ResultCode int
+
+const (
+	ResultSuccess     ResultCode = iota
+	ResultInvalidAuth            = 0x0013
+)
+
 type Header struct {
 	Version   int8
 	Op        int8
