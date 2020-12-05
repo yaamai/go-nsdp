@@ -2,7 +2,6 @@ package nsdp
 
 import (
 	"errors"
-	"log"
 	"math/rand"
 	"net"
 	"time"
@@ -96,7 +95,6 @@ func (c *Client) SendRecvMsg(msg *Msg) (*Msg, error) {
 	readLen := 0
 	go func() {
 		readLen, _, _ = c.conn.ReadFrom(buf)
-		log.Println("recv", readLen, buf[:readLen])
 		recvCh <- true
 	}()
 
@@ -113,7 +111,6 @@ func (c *Client) SendRecvMsg(msg *Msg) (*Msg, error) {
 			return resp, nil
 		case <-ticker.C:
 			b, err := msg.MarshalBinary()
-			log.Println("send", b, err)
 			_, err = c.conn.WriteTo(b, c.targetAddr)
 			if err != nil {
 				return nil, err
