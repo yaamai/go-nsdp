@@ -11,7 +11,7 @@ const (
 	HeaderLength = 32
 )
 
-type ResultCode int
+type ResultCode int16
 
 const (
 	ResultSuccess     ResultCode = iota
@@ -32,7 +32,7 @@ func (c ResultCode) String() string {
 type Header struct {
 	Version   int8
 	Op        int8
-	Result    int16
+	Result    ResultCode
 	Unknown1  [4]byte
 	HostMac   net.HardwareAddr
 	DeviceMac net.HardwareAddr
@@ -76,7 +76,7 @@ func (h *Header) UnmarshalBinaryBuffer(r *bytes.Reader) error {
 	}
 	h.Version = readInt8(r)
 	h.Op = readInt8(r)
-	h.Result = readInt16(r)
+	h.Result = ResultCode(readInt16(r))
 	r.Read(h.Unknown1[:])
 	h.HostMac = make([]byte, 6)
 	r.Read(h.HostMac[:])
