@@ -123,6 +123,9 @@ func main() {
 		resp *nsdp.Msg
 	)
 	if action == "set" {
+		if *password == "" {
+			*password = os.Getenv("NSDP_PASSWORD")
+		}
 		resp, err = c.WriteWithAuth(*password, tlvs...)
 		if err != nil {
 			log.Fatalln(err)
