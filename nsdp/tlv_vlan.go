@@ -46,7 +46,7 @@ func (t TagVlanMembers) Value() []byte {
 	vlanid := []byte{byte((t.VlanID >> 8) & 0xff), byte(t.VlanID & 0xff)}
 
 	// maybe len(tagged) and len(untagged) must be equal. but not checked
-	return append(vlanid, append(tagged, untagged...)...)
+	return append(vlanid, append(untagged, tagged...)...)
 }
 func NewTagVlanMembersFromBytes(buf []byte) *TagVlanMembers {
 	t := &TagVlanMembers{}

@@ -12,9 +12,24 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: nsdp-cli [flags] action action-args...\n")
-	fmt.Fprintf(os.Stderr, "examples: nsdp-cli query modelname hostname\n")
-	fmt.Fprintf(os.Stderr, "          nsdp-cli set tag-vlan:1000:6,7,8:1\n")
+	fmt.Fprintf(os.Stderr, "usage: nsdp-cli [flags] query/set attr-name:param1:param2:param3, ...\n")
+	fmt.Fprintf(os.Stderr, "attrs:\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] model-name\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] host-name\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] macaddr\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] ipaddr\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] netmask\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] gateway\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] port-link-stat\n")
+	fmt.Fprintf(os.Stderr, "  [Q  ] port-stat\n")
+	fmt.Fprintf(os.Stderr, "  [Q/S] tag-vlan-pvid\n")
+	fmt.Fprintf(os.Stderr, "        param1: port-id\n")
+	fmt.Fprintf(os.Stderr, "        param2: vlan-id\n")
+	fmt.Fprintf(os.Stderr, "  [Q/S] tag-vlan\n")
+	fmt.Fprintf(os.Stderr, "        param1: vlan-id\n")
+	fmt.Fprintf(os.Stderr, "        param2: untagged port-id\n")
+	fmt.Fprintf(os.Stderr, "        param3: tagged port-id\n")
+	fmt.Fprintf(os.Stderr, "examples: nsdp-cli set tag-vlan:1000:1,6:1\n")
 	fmt.Fprintf(os.Stderr, "\nflags:\n")
 	flag.PrintDefaults()
 }
@@ -73,8 +88,8 @@ func ConvertCmdsToTLVs(cmds []string) []nsdp.TLV {
 				vlanId, err := strconv.Atoi(params[1])
 				if err == nil {
 					tlv.VlanID = vlanId
-					tlv.TaggedPorts = SplitInts(params[2], ",")
-					tlv.UnTaggedPorts = SplitInts(params[3], ",")
+					tlv.UnTaggedPorts = SplitInts(params[2], ",")
+					tlv.TaggedPorts = SplitInts(params[3], ",")
 				}
 			}
 			result = append(result, tlv)
