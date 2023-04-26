@@ -17,7 +17,7 @@ const (
 )
 
 // get first non-loopback address, intf-name and mac
-func getSelfIntfAndIp() (string, string, []byte, error) {
+func getSelfIntfAndIp(device string) (string, string, []byte, error) {
 	intfs, err := net.Interfaces()
 	if err != nil {
 		return "", "", nil, err
@@ -26,6 +26,9 @@ func getSelfIntfAndIp() (string, string, []byte, error) {
 	for _, intf := range intfs {
 		addrs, err := intf.Addrs()
 		if err != nil {
+			continue
+		}
+		if device != "" && intf.Name != device {
 			continue
 		}
 
@@ -49,8 +52,8 @@ type Client struct {
 	seq          uint16
 }
 
-func NewDefaultClient() (*Client, error) {
-	selfAddrStr, _, intfHwAddr, err := getSelfIntfAndIp()
+func NewDefaultClient(device string) (*Client, error) {
+	selfAddrStr, _, intfHwAddr, err := getSelfIntfAndIp(device)
 	if err != nil {
 		return nil, err
 	}
