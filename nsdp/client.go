@@ -60,7 +60,7 @@ func NewDefaultClient() (*Client, error) {
 		return nil, err
 	}
 
-	anyAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:63322")
+	anyAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(DefaultDestAddr, DefaultSendPort))
 	if err != nil {
 		return nil, err
 	}
