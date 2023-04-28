@@ -17,7 +17,7 @@ const (
 )
 
 // get first non-loopback address, intf-name and mac
-func getSelfIntfAndIp() (string, string, []byte, error) {
+func getSelfIntfAndIp(device string) (string, string, []byte, error) {
 	intfs, err := net.Interfaces()
 	if err != nil {
 		return "", "", nil, err
@@ -26,6 +26,9 @@ func getSelfIntfAndIp() (string, string, []byte, error) {
 	for _, intf := range intfs {
 		addrs, err := intf.Addrs()
 		if err != nil {
+			continue
+		}
+		if device != "" && intf.Name != device {
 			continue
 		}
 
@@ -45,12 +48,13 @@ type Client struct {
 	listenAddr   *net.UDPAddr
 	targetAddr   *net.UDPAddr
 	sourceHwAddr net.HardwareAddr
+	targetHwAddr net.HardwareAddr
 	conn         *net.UDPConn
 	seq          uint16
 }
 
-func NewDefaultClient() (*Client, error) {
-	selfAddrStr, _, intfHwAddr, err := getSelfIntfAndIp()
+func NewDefaultClient(device, target string) (*Client, error) {
+	selfAddrStr, _, intfHwAddr, err := getSelfIntfAndIp(device)
 	if err != nil {
 		return nil, err
 	}
@@ -60,15 +64,20 @@ func NewDefaultClient() (*Client, error) {
 		return nil, err
 	}
 
-	anyAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:63322")
+	anyAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(DefaultDestAddr, DefaultSendPort))
 	if err != nil {
 		return nil, err
 	}
 
-	return NewClient(selfAddr, anyAddr, net.HardwareAddr(intfHwAddr))
+	targetMac, err := net.ParseMAC(target)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewClient(selfAddr, anyAddr, net.HardwareAddr(intfHwAddr), targetMac)
 }
 
-func NewClient(listenAddr, targetAddr *net.UDPAddr, sourceHwAddr net.HardwareAddr) (*Client, error) {
+func NewClient(listenAddr, targetAddr *net.UDPAddr, sourceHwAddr net.HardwareAddr, targetHwAddr net.HardwareAddr) (*Client, error) {
 	conn, err := net.ListenUDP("udp", listenAddr)
 	if err != nil {
 		return nil, err
@@ -82,6 +91,7 @@ func NewClient(listenAddr, targetAddr *net.UDPAddr, sourceHwAddr net.HardwareAdd
 		listenAddr:   listenAddr,
 		targetAddr:   targetAddr,
 		sourceHwAddr: sourceHwAddr,
+		targetHwAddr: targetHwAddr,
 		conn:         conn,
 		seq:          seq,
 	}, nil
@@ -127,6 +137,7 @@ func (c Client) makeReadMsg(tlvs ...TLV) *Msg {
 	m.Op = 1
 	m.Seq = c.seq
 	m.HostMac = c.sourceHwAddr
+	m.DeviceMac = c.targetHwAddr
 	m.Body = Body(tlvs)
 
 	return &m
@@ -141,6 +152,7 @@ func (c Client) makeWriteMsg(tlvs ...TLV) *Msg {
 	m.Op = 3
 	m.Seq = c.seq
 	m.HostMac = c.sourceHwAddr
+	m.DeviceMac = c.targetHwAddr
 	m.Body = Body(tlvs)
 	return &m
 }

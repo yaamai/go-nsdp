@@ -102,6 +102,8 @@ func ConvertCmdsToTLVs(cmds []string) []nsdp.TLV {
 func main() {
 	var (
 		password = flag.String("password", "", "switch password (required when setting values)")
+		netdevice = flag.String("device", "", "network interface to use (default first non loopback)")
+		target = flag.String("target", "00:00:00:00:00:00", "target MAC address of switch")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -114,7 +116,7 @@ func main() {
 	action := positionalArgs[0]
 	tlvs := ConvertCmdsToTLVs(positionalArgs[1:])
 
-	c, err := nsdp.NewDefaultClient()
+	c, err := nsdp.NewDefaultClient(*netdevice, *target)
 	if err != nil {
 		log.Fatalln(err)
 	}
